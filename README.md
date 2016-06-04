@@ -18,6 +18,7 @@ Planned features
  - `Display` and `Debug` implementations for `&[PathSeg]` or types you can iterate over generally if possible.
  - Complete the conversions from `Primitive` to `PathSeg`.
  - Helper functions to parse paths directly into `Primitive`s.
+ - Implement `FromStr` for `Primitive`.
  - Support to parse `<polygon>`s and `<polyline>`s into `Primitive`s.
  - Support to convert `<rect>`s, `<circle>`s, `<ellipse>`s, and `<line>`s into `Primitive`s.
  - Support for parsing and applying `transform`s.

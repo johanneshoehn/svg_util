@@ -230,6 +230,20 @@ pub enum PathSeg<T> {
     },
 }
 
+impl<T> From<Primitive<T>> for PathSeg<T> {
+    fn from(primitive: Primitive<T>) -> PathSeg<T> {
+        match primitive {
+            Primitive::Closepath => PathSeg::Closepath,
+            Primitive::Moveto {p} => PathSeg::MovetoAbs {p: p},
+            Primitive::Lineto{p} => PathSeg::LinetoAbs {p: p},
+            Primitive::CurvetoCubic {p1, p2, p} => PathSeg::CurvetoCubicAbs {p1: p1, p2: p2, p: p},
+            Primitive::CurvetoQuadratic {p1, p} => PathSeg::CurvetoQuadraticAbs {p1: p1, p: p},
+            Primitive::Arc {r1, r2, rotation, large_arc_flag, sweep_flag, p} =>
+                PathSeg::ArcAbs {r1: r1, r2: r2, rotation: rotation, large_arc_flag: large_arc_flag, sweep_flag: sweep_flag, p: p}
+        }
+    }
+}
+
 impl<T> PathSeg<T> {
     fn path_seg_type(self) -> PathSegType {
         match self {

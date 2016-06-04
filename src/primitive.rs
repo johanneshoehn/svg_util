@@ -2,6 +2,10 @@
 //!
 //! blub
 
+use path::PathSeg;
+use std::fmt;
+use std::fmt::Display;
+
 /// A geometric primitive.
 ///
 /// The geometric primitives that can represent all geometries supported by SVG.
@@ -32,4 +36,12 @@ pub enum Primitive<T> {
         sweep_flag: bool,
         p: (T, T),
     },
+}
+
+impl<T: Display + Copy> fmt::Debug for Primitive<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        let primitive = self.clone();
+        let seg : PathSeg<T> = primitive.into();
+        seg.fmt(f)
+    }
 }
