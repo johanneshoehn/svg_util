@@ -1,0 +1,9 @@
+[package]
+name = "svg_util"
+version = "0.0.1"
+authors = ["Johannes Höhn <johannes.karl.hoehn@gmail.com>"]
+license = "CC0-1.0"
+
+description = "svg_util parses and prints SVG path strings"
+readme = "README.md"
+keywords = ["svg"]
