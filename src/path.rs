@@ -891,14 +891,30 @@ impl<W: Write> PathSegWriter<W> {
 
 /// Converts `PathSeg`s to `Primitive`s.
 pub struct PathSegToPrimitive<T> {
-    // The position we're currently at.
+    /// The position we're currently at.
     pos: (T, T),
-    // Where we moved to with the last move
+    /// Where we moved to with the last move.
     last_move: (T, T),
-    // The position we're going to predict for a cubic smooth `PathSeg`.
+    /// The position we're going to predict for a cubic smooth `PathSeg`.
     cubic_smooth: (T, T),
-    // The position we're going to predict for a quadratic smooth `PathSeg`.
+    /// The position we're going to predict for a quadratic smooth `PathSeg`.
     quadratic_smooth: (T, T),
+}
+
+impl <T: Default> PathSegToPrimitive<T> {
+    /// Create a new `PathSegToPrimitive` converter.
+    /// It saves the state necessary to transform relative, smooth, and vertical/horizontal Segments into `Primitive`s
+    ///
+    /// FIXME: Doesn't work correctly for paths starting with `m`, if the `Default` value isn't zero.
+    /// The `Zero` trait however is still marked as unstable.
+    pub fn new() -> Self {
+        PathSegToPrimitive {
+            pos: (Default::default(), Default::default()),
+            last_move: (Default::default(), Default::default()),
+            cubic_smooth: (Default::default(), Default::default()),
+            quadratic_smooth: (Default::default(), Default::default()),
+        }
+    }
 }
 
 fn to_abs<T: Add<T, Output=T>>(pos: (T,T), rel: (T, T)) -> (T, T) {
@@ -915,8 +931,7 @@ fn predict<T: Copy + Add<T, Output=T> + Sub<T, Output=T>>(new_pos: (T,T), point:
 }
 
 impl <T: Copy + Add<T, Output=T> + Sub<T, Output=T>> PathSegToPrimitive<T> {
-    // FIXME: pub fn new 
-    
+    /// Convert a `PathSeg` to a `Primitive`.
     pub fn convert(&mut self, seg: PathSeg<T>) -> Primitive<T> {
         match seg {
             PathSeg::Closepath => {
