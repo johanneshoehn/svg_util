@@ -14,8 +14,6 @@ Version history
 Planned features
 ----------------
 
- - Measure the maximum precision (digits after the decimal in a number) when parsing paths.
- - `Display` and `Debug` implementations for `&[PathSeg]` or types you can iterate over generally if possible.
  - Complete the conversions from `Primitive` to `PathSeg`.
  - Helper functions to parse paths directly into `Primitive`s.
  - Implement `FromStr` for `Primitive`.

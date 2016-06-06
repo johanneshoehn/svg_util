@@ -306,16 +306,18 @@ impl<T: Display + Copy> fmt::Debug for PathSeg<T> {
 /// ```
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub struct PathSegReader<'a, T> {
-    // The rest of the string to be parsed
+    /// The rest of the string to be parsed.
     src: &'a [u8],
-    // The type of the last command that was parsed.
-    // This is needed because when the Type doesn't change it doesn't need to be repeated.
-    // E.g. `V 0 1` is equal to `V 0 V 1`
+    /// The type of the last command that was parsed.
+    /// This is needed because when the Type doesn't change it doesn't need to be repeated.
+    /// E.g. `V 0 1` is equal to `V 0 V 1`
     mode: Option<PathSegType>,
-    // The first PathSeg must be a move. If this bool is set a non-move will lead to an error.
+    /// The first PathSeg must be a move. If this bool is set a non-move will lead to an error.
     first: bool,
-    // needed to implement the Iterator
+    /// Needed to implement the Iterator.
     phantom: PhantomData<T>,
+    /// The maximum precision that occured up to now.
+    max_precision: usize,
 }
 
 // TODO: Add more info like where in the string the error happened.
@@ -359,6 +361,7 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
             mode: None,
             first: true,
             phantom: PhantomData,
+            max_precision: 0,
         }
     }
     // In contrast to the reader created by `new` this allows parsing arbitrary
@@ -369,6 +372,7 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
             mode: None,
             first: false,
             phantom: PhantomData,
+            max_precision: 0,
         }
     }
 
@@ -385,6 +389,11 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
         } else {
             Some(self.pop_empty())
         }
+    }
+
+    /// Returns the maximum precision encountered so far.
+    pub fn precision(&self) -> usize {
+        self.max_precision
     }
 
     // Pop one `PathSeg` with the precondition that there are
@@ -540,6 +549,7 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
 
     fn get_number(&mut self, nonnegative: bool) -> Result<T, Error> {
         let mut length = 0;
+        let mut precision : usize = 0;
 
         if !nonnegative {
             match self.src.get(length) {
@@ -564,6 +574,7 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
                 match *c {
                     b'0'...b'9' => {
                         length += 1;
+                        precision += 1;
                     }
                     _ => break,
                 }
@@ -580,23 +591,51 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
         match self.src.get(length) {
             Some(&b'e') | Some(&b'E') => {
                 length += 1;
-                match self.src.get(length) {
-                    Some(&b'+') | Some(&b'-') => {
+                let negative = match self.src.get(length) {
+                    Some(&b'+')  => {
                         length += 1;
+                        false
                     }
-                    _ => {}
-                }
-                // TODO: does the specification allow the following to have length 0?
-                while let Some(c) = self.src.get(length) {
+                    Some(&b'-') => {
+                        length += 1;
+                        true
+                    }
+                    _ => false
+                };
+                let mut length_after_e = length;
+                while let Some(c) = self.src.get(length_after_e) {
                     match *c {
                         b'0'...b'9' => {
-                            length += 1;
+                            length_after_e += 1;
                         }
                         _ => break,
                     }
                 }
+                if length_after_e == length {
+                    // Digits need to follow after an `e`/`E`.
+                    return Err(Error::ExpectedNumber);
+                }
+                // Parse the number after `e` into a `usize` and subtract it from the precision.
+                // E.g. 0.1e1 == 1 with precision 0.
+                let num = &self.src[length .. length_after_e];
+                let numstring = unsafe { from_utf8_unchecked(num) };
+                match usize::from_str(numstring) {
+                    Ok(num) => {
+                        if negative {
+                            precision += num;
+                        } else {
+                            precision = precision.saturating_sub(num);
+                        }
+                    }
+                    _ => {}
+                }
+                length = length_after_e;
             }
             _ => {}
+        }
+
+        if precision > self.max_precision {
+            self.max_precision = precision;
         }
 
         let (num, rest) = self.src.split_at(length);
