@@ -699,18 +699,27 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
         let p = try!(self.get_coordinate_pair());
         Ok((r1, r2, rotation, large_arc_flag, sweep_flag, p))
     }
-    
-    /// Parse all `PathSeg`s and put them in a newly allocated array.
-    pub fn all_pathsegs(self) -> (Vec<PathSeg<T>>, Option<Error>) {
-        let mut array = Vec::new();
-        for seg_result in self {
-            match seg_result {
-                Ok(seg) => { array.push(seg); }
-                Err(e) => { return (array, Some(e)); }
-            }
+}
+
+/// Parse all `PathSeg`s and put them in a newly allocated array.
+///
+/// Returns all `PathSeg`s that were parsed until an error occurred or the string was empty,
+/// the error if one occured and the maximum precision.
+pub fn parse_all_pathsegs<'a, T: Copy + FromStr, B: AsRef<[u8]> + ?Sized>(src: &'a B) -> (Vec<PathSeg<T>>, Option<Error>, usize) {
+    let mut parser = PathSegReader::new(src);
+    let mut array = Vec::new();
+    loop {
+        let result = match parser.pop_one_pathseg() {
+            Some(result) => result,
+            None => break
+        };
+        match result {
+            Ok(seg) => { array.push(seg) }
+            Err(e) => { return (array, Some(e), parser.precision()) }
         }
-        (array, None)
+        
     }
+    (array, None, parser.precision())
 }
 
 /// The `Iterator` for `PathSegReader`.
@@ -779,9 +788,9 @@ impl<'a, T: Copy + Display + FromStr> fmt::Display for PathSegReader<'a, T> {
 /// let the `PathSegWriter` let go out of scope again before
 /// using the `Write` again.
 /// FIXME: example
-pub struct PathSegWriter<W: Write> {
+pub struct PathSegWriter<'a, W: 'a + Write> {
     /// Where to write to.
-    sink: W,
+    sink: &'a mut W,
     /// The type of the last written `PathSeg`.
     mode: Option<PathSegType>,
     /// Wheter to pretty-print or have an optimized output.
@@ -792,9 +801,9 @@ pub struct PathSegWriter<W: Write> {
     last_token: TokenWritten,
 }
 
-impl<W: Write> PathSegWriter<W> {
+impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
     /// Creates a new `PathSegWriter` that writes in a space-saving way.
-    pub fn new(sink: W) -> PathSegWriter<W> {
+    pub fn new(sink: &'a mut W) -> PathSegWriter<'a, W> {
         PathSegWriter {
             sink: sink,
             mode: None,
@@ -804,7 +813,7 @@ impl<W: Write> PathSegWriter<W> {
         }
     }
     /// Creates a new `PathSegWriter` that writes in a pretty, human-readable way.
-    pub fn new_pretty(sink: W) -> PathSegWriter<W> {
+    pub fn new_pretty(sink: &'a mut W) -> PathSegWriter<W> {
         PathSegWriter {
             sink: sink,
             mode: None,
@@ -818,14 +827,9 @@ impl<W: Write> PathSegWriter<W> {
     /// Default is `None`, which means no limit.
     ///
     /// Warning: If you have many small relative segments, the error will add up and distort the path dramatically. 
-    pub fn with_precision_limit(mut self, precision: Option<usize>) -> PathSegWriter<W> {
+    pub fn with_precision_limit(mut self, precision: Option<usize>) -> PathSegWriter<'a, W> {
         self.precision = precision;
         self
-    }
-    
-    /// Destroy the PathSegWriter and return the `Write` it contains.
-    pub fn into_inner(self) -> W {
-        self.sink
     }
     
     /// Write one number
@@ -837,7 +841,7 @@ impl<W: Write> PathSegWriter<W> {
                 let mut filter = DropTrailingZeros::new(&mut self.sink);
                 try!(write!(filter, "{:.*}", precision, num));
             } else {
-                try!(write!(&mut self.sink, "{}", num));
+                try!(write!(self.sink, "{}", num));
             }
             return Ok(());
         } else {
@@ -940,6 +944,26 @@ impl<W: Write> PathSegWriter<W> {
                 self.write_pair(p),
         }
     }
+}
+
+/// Prints all `PathSeg`s from a slice into a `Write`.
+///
+/// # Examples
+/// 
+/// ```
+/// use svg_util::path::{PathSeg, print_all_pathsegs};
+///
+/// let mut str = String::new();
+/// let segs : [PathSeg<i8>; 2] = [PathSeg::MovetoAbs{ p: (1,1) }, PathSeg::LinetoRel{ p: (1,1) }];
+/// print_all_pathsegs(&mut str, &segs, None).unwrap();
+/// assert_eq!(str, "M1 1l1 1");
+/// ```
+pub fn print_all_pathsegs<'a, W: Write, T: Display + Copy>(sink: &mut W, pathsegs: &'a[PathSeg<T>], precision: Option<usize>) -> Result<(), fmt::Error> {
+    let mut writer = PathSegWriter::new(sink).with_precision_limit(precision);
+    for seg in pathsegs {
+        try!(writer.write(seg.clone()));
+    }
+    Ok(())
 }
 
 /// Converts `PathSeg`s to `Primitive`s.
