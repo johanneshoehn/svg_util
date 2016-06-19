@@ -15,29 +15,11 @@ use std::ops::{Add, Sub};
 #[derive(Eq, PartialEq, Copy, Clone)]
 pub enum Primitive<T> {
     Closepath,
-    Moveto {
-        p: (T, T),
-    },
-    Lineto {
-        p: (T, T),
-    },
-    CurvetoCubic {
-        p1: (T, T),
-        p2: (T, T),
-        p: (T, T),
-    },
-    CurvetoQuadratic {
-        p1: (T, T),
-        p: (T, T),
-    },
-    Arc {
-        r1: T,
-        r2: T,
-        rotation: T,
-        large_arc_flag: bool,
-        sweep_flag: bool,
-        p: (T, T),
-    },
+    Moveto((T, T)),
+    Lineto((T, T)),
+    CurvetoCubic((T, T), (T, T), (T, T)),
+    CurvetoQuadratic((T, T), (T, T)),
+    Arc(T, T, T, bool, bool, (T,T)),
 }
 
 impl<T: Display + Copy> fmt::Debug for Primitive<T> {
@@ -50,16 +32,16 @@ impl<T: Display + Copy> fmt::Debug for Primitive<T> {
 
 /// Parse a [`<line>`](http://www.w3.org/TR/SVG11/shapes.html#LineElement) into an array of primitives.
 pub fn parse_line<T: Copy>(x1: T, y1: T, x2: T, y2: T) -> [Primitive<T>; 2] {
-    [Primitive::Moveto{p: (x1, y1)}, Primitive::Lineto{p: (x2, y2)}]
+    [Primitive::Moveto((x1, y1)), Primitive::Lineto((x2, y2))]
 }
 
 /// Parse a [`<circle>`](http://www.w3.org/TR/SVG11/shapes.html#CircleElement) into an array of primitives.
 ///
 /// Note that you need to check that r is positive.
 pub fn parse_circle<T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Default>(cx: T, cy: T, r: T) -> [Primitive<T>; 4] {
-    [Primitive::Moveto{ p: (cx+r, cy) },
-     Primitive::Arc{ r1: r, r2: r, rotation: Default::default(), large_arc_flag: false, sweep_flag: true, p: (cx-r, cy)},
-     Primitive::Arc{ r1: r, r2: r, rotation: Default::default(), large_arc_flag: false, sweep_flag: true, p: (cx+r, cy)},
+    [Primitive::Moveto((cx+r, cy)),
+     Primitive::Arc(r, r, Default::default(), false, true, (cx-r, cy)),
+     Primitive::Arc(r, r, Default::default(), false, true, (cx+r, cy)),
      Primitive::Closepath]
 }
 
@@ -67,9 +49,9 @@ pub fn parse_circle<T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Default>(cx:
 ///
 /// Note that you need to check that `rx` and `ry` are positive.
 pub fn parse_ellipse<T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Default>(cx: T, cy: T, rx: T, ry: T) -> [Primitive<T>; 4] {
-    [Primitive::Moveto{ p: (cx+rx, cy) },
-     Primitive::Arc{ r1: rx, r2: ry, rotation: Default::default(), large_arc_flag: false, sweep_flag: true, p: (cx-rx, cy)},
-     Primitive::Arc{ r1: rx, r2: ry, rotation: Default::default(), large_arc_flag: false, sweep_flag: true, p: (cx+rx, cy)},
+    [Primitive::Moveto((cx+rx, cy)),
+     Primitive::Arc(rx, ry, Default::default(), false, true, (cx-rx, cy)),
+     Primitive::Arc(rx, ry, Default::default(), false, true, (cx+rx, cy)),
      Primitive::Closepath]
 }
 
@@ -77,11 +59,11 @@ pub fn parse_ellipse<T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Default>(cx
 ///
 /// Note that `width` and `height` need to be larger than zero according to the spec.
 pub fn parse_simple_rect<T: Copy + Add<T, Output=T>>(x: T, y: T, width: T, height: T) -> [Primitive<T>; 6] {
-    [Primitive::Moveto{p: (x, y)},
-     Primitive::Lineto{p: (x+width, y)},
-     Primitive::Lineto{p: (x+width, y+height)},
-     Primitive::Lineto{p: (x, y+height)},
-     Primitive::Lineto{p: (x, y)},
+    [Primitive::Moveto((x, y)),
+     Primitive::Lineto((x+width, y)),
+     Primitive::Lineto((x+width, y+height)),
+     Primitive::Lineto((x, y+height)),
+     Primitive::Lineto((x, y)),
      Primitive::Closepath]
 }
 

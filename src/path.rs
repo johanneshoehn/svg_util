@@ -114,132 +114,56 @@ fn path_seg_type_test() {
 /// The different types of segments are explained in detail in the [SVG Specification](http://www.w3.org/TR/SVG11/paths.html#PathData)
 #[derive(Eq, PartialEq, Copy, Clone)]
 pub enum PathSeg<T> {
-    /// Closes the path and moves back to where the last moveto started the subpath. 
+    /// Closes the path and moves back to where the last moveto started the subpath.
     Closepath,
-    /// Starts a new subpath.
-    MovetoAbs {
-        /// The absolute position of the start of the new subpath.
-        p: (T, T),
-    },
-    /// Starts a new subpath.
-    MovetoRel {
-        /// The position of the start of the new subpath, relative to the last segment.
-        p: (T, T),
-    },
-    /// Draws a line.
-    LinetoAbs {
-        /// The absolute position where to draw the line to.
-        p: (T, T),
-    },
-    /// Draws a line.
-    LinetoRel {
-        /// The position where to draw the line to, relative to the last segment.
-        p: (T, T),
-    },
-    /// Draws a cubic Bézier curve with absolute positions.
-    CurvetoCubicAbs {
-        /// First control point after the start position.
-        p1: (T, T),
-        /// Second control point after the start position.
-        p2: (T, T),
-        /// End position of the curve.
-        p: (T, T),
-    },
-    /// Draws a cubic Bézier curve with positions relative to the start position.
-    CurvetoCubicRel {
-        /// First control point after the start position.
-        p1: (T, T),
-        /// Second control point after the start position.
-        p2: (T, T),
-        /// End position of the curve.
-        p: (T, T),
-    },
-    /// Draws a quadratic Bézier curve with absolute positions.
-    CurvetoQuadraticAbs {
-        /// Control point after the start position.
-        p1: (T, T),
-        /// End position of the curve.
-        p: (T, T),
-    },
+    /// Starts a new subpath at an absolute position.
+    MovetoAbs((T, T)),
+    /// Starts a new subpath at a position relative to the last current position.
+    MovetoRel((T, T)), 
+    /// Draws a line from the current position to an absolute position.
+    LinetoAbs((T, T)),
+    /// Draws a line from the current position to a position relative to the current position.
+    LinetoRel((T, T)),
+    /// Draws a cubic Bézier curve with absolute positions for first control point, second control point and end position.
+    CurvetoCubicAbs((T, T), (T, T), (T, T)),
+    /// Draws a cubic Bézier curve with relative positions for first control point, second control point and end position.
+    CurvetoCubicRel((T, T), (T, T), (T, T)),
+    /// Draws a quadratic Bézier curve with absolute positions for the control point and the end position.
+    CurvetoQuadraticAbs((T, T), (T, T)),
     /// Draws a quadratic Bézier curve with positions relative to the start position.
-    CurvetoQuadraticRel {
-        /// Control point after the start position.
-        p1: (T, T),
-        /// End position of the curve.
-        p: (T, T),
-    },
-    /// Draws an arc with an absolute end position.
-    ArcAbs {
-        /// Radius in x direction.
-        r1: T,
-        /// Radius in y direction.
-        r2: T,
-        /// Rotation of the axis.
-        rotation: T,
-        large_arc_flag: bool,
-        sweep_flag: bool,
-        /// End position of the arc.
-        p: (T, T),
-    },
-    /// Draws an arc with an absolute end position.
-    ArcRel {
-        /// Radius in x direction.
-        r1: T,
-        /// Radius in y direction.
-        r2: T,
-        /// Rotation of the axis.
-        rotation: T,
-        large_arc_flag: bool,
-        sweep_flag: bool,
-        /// End position of the arc, relative to the last segment's end.
-        p: (T, T),
-    },
-    /// Draws a horizontal line.
-    LinetoHorizontalAbs {
-        /// Absolute x position where to draw to.
-        x: T,
-    },
-    /// Draws a horizontal line.
-    LinetoHorizontalRel {
-        /// x position where to draw to, relative to the last segment's end.
-        x: T,
-    },
-    /// Draws a vertical line.
-    LinetoVerticalAbs {
-        /// Absolute y position where to draw to.
-        y: T,
-    },
-    /// Draws a vertical line.
-    LinetoVerticalRel {
-        /// y position where to draw to, relative to the last segment's end.
-        y: T,
-    },
-    CurvetoCubicSmoothAbs {
-        p2: (T, T),
-        p: (T, T),
-    },
-    CurvetoCubicSmoothRel {
-        p2: (T, T),
-        p: (T, T),
-    },
-    CurvetoQuadraticSmoothAbs {
-        p: (T, T),
-    },
-    CurvetoQuadraticSmoothRel {
-        p: (T, T),
-    },
+    CurvetoQuadraticRel((T, T), (T, T)),
+    /// Draws an arc with radius in x direction, radius in y direction, rotation of the axis, large arc flag, sweep flag and the absolute end position.
+    ArcAbs(T, T, T, bool, bool, (T, T)),
+    /// Draws an arc with radius in x direction, radius in y direction, rotation of the axis, large arc flag, sweep flag and the end position relative current to the current position.
+    ArcRel(T, T, T, bool, bool, (T, T)),
+    /// Draws a horizontal line to an absolute x position.
+    LinetoHorizontalAbs(T),
+    /// Draws a horizontal line with a certain length.
+    LinetoHorizontalRel(T),
+    /// Draws a vertical line to an absolute y position.
+    LinetoVerticalAbs(T),
+    /// Draws a vertical line with a certain length.
+    LinetoVerticalRel(T),
+    /// Draws a cubic Bézier curve with a calculated first control point and absolute positions for the second control point and end position.
+    CurvetoCubicSmoothAbs((T, T), (T, T)),
+    /// Draws a cubic Bézier curve with a calculated first control point and relative positions for the second control point and end position.
+    CurvetoCubicSmoothRel((T, T), (T, T)),
+    /// Draws a quadratic Bézier curve with a calculated control point and the absolute end position.
+    CurvetoQuadraticSmoothAbs((T, T)),
+    /// Draws a quadratic Bézier curve with a calculated control point and the relative end position.
+    CurvetoQuadraticSmoothRel((T, T)),
 }
 
 impl<T> From<Primitive<T>> for PathSeg<T> {
     fn from(primitive: Primitive<T>) -> PathSeg<T> {
         match primitive {
             Primitive::Closepath => PathSeg::Closepath,
-            Primitive::Moveto {p} => PathSeg::MovetoAbs {p: p},
-            Primitive::Lineto{p} => PathSeg::LinetoAbs {p: p},
-            Primitive::CurvetoCubic {p1, p2, p} => PathSeg::CurvetoCubicAbs {p1: p1, p2: p2, p: p},
-            Primitive::CurvetoQuadratic {p1, p} => PathSeg::CurvetoQuadraticAbs {p1: p1, p: p},
-            Primitive::Arc {r1, r2, rotation, large_arc_flag, sweep_flag, p} =>
-                PathSeg::ArcAbs {r1: r1, r2: r2, rotation: rotation, large_arc_flag: large_arc_flag, sweep_flag: sweep_flag, p: p}
+            Primitive::Moveto(p) => PathSeg::MovetoAbs(p),
+            Primitive::Lineto(p) => PathSeg::LinetoAbs(p),
+            Primitive::CurvetoCubic(p1, p2, p) => PathSeg::CurvetoCubicAbs(p1, p2, p),
+            Primitive::CurvetoQuadratic(p1, p) => PathSeg::CurvetoQuadraticAbs(p1, p),
+            Primitive::Arc(r1, r2, rotation, large_arc_flag, sweep_flag, p) =>
+                PathSeg::ArcAbs(r1, r2, rotation, large_arc_flag, sweep_flag, p)
         }
     }
 }
@@ -248,24 +172,24 @@ impl<T> PathSeg<T> {
     fn path_seg_type(self) -> PathSegType {
         match self {
             PathSeg::Closepath => PathSegType::ClosepathRel,
-            PathSeg::MovetoAbs { .. } => PathSegType::MovetoAbs,
-            PathSeg::MovetoRel { .. } => PathSegType::MovetoRel,
-            PathSeg::LinetoAbs { .. } => PathSegType::LinetoAbs,
-            PathSeg::LinetoRel { .. } => PathSegType::LinetoRel,
-            PathSeg::CurvetoCubicAbs { .. } => PathSegType::CurvetoCubicAbs,
-            PathSeg::CurvetoCubicRel { .. } => PathSegType::CurvetoCubicRel,
-            PathSeg::CurvetoQuadraticAbs { .. } => PathSegType::CurvetoQuadraticAbs,
-            PathSeg::CurvetoQuadraticRel { .. } => PathSegType::CurvetoQuadraticRel,
-            PathSeg::ArcAbs { .. } => PathSegType::ArcAbs,
-            PathSeg::ArcRel { .. } => PathSegType::ArcRel,
-            PathSeg::LinetoHorizontalAbs { .. } => PathSegType::LinetoHorizontalAbs,
-            PathSeg::LinetoHorizontalRel { .. } => PathSegType::LinetoHorizontalRel,
-            PathSeg::LinetoVerticalAbs { .. } => PathSegType::LinetoVerticalAbs,
-            PathSeg::LinetoVerticalRel { .. } => PathSegType::LinetoVerticalRel,
-            PathSeg::CurvetoCubicSmoothAbs { .. } => PathSegType::CurvetoCubicSmoothAbs,
-            PathSeg::CurvetoCubicSmoothRel { .. } => PathSegType::CurvetoCubicSmoothRel,
-            PathSeg::CurvetoQuadraticSmoothAbs { .. } => PathSegType::CurvetoQuadraticSmoothAbs,
-            PathSeg::CurvetoQuadraticSmoothRel { .. } => PathSegType::CurvetoQuadraticSmoothRel,
+            PathSeg::MovetoAbs( .. ) => PathSegType::MovetoAbs,
+            PathSeg::MovetoRel( .. ) => PathSegType::MovetoRel,
+            PathSeg::LinetoAbs( .. ) => PathSegType::LinetoAbs,
+            PathSeg::LinetoRel( .. ) => PathSegType::LinetoRel,
+            PathSeg::CurvetoCubicAbs( .. ) => PathSegType::CurvetoCubicAbs,
+            PathSeg::CurvetoCubicRel( .. ) => PathSegType::CurvetoCubicRel,
+            PathSeg::CurvetoQuadraticAbs( .. ) => PathSegType::CurvetoQuadraticAbs,
+            PathSeg::CurvetoQuadraticRel( .. ) => PathSegType::CurvetoQuadraticRel,
+            PathSeg::ArcAbs( .. ) => PathSegType::ArcAbs,
+            PathSeg::ArcRel( .. ) => PathSegType::ArcRel,
+            PathSeg::LinetoHorizontalAbs( .. ) => PathSegType::LinetoHorizontalAbs,
+            PathSeg::LinetoHorizontalRel( .. ) => PathSegType::LinetoHorizontalRel,
+            PathSeg::LinetoVerticalAbs( .. ) => PathSegType::LinetoVerticalAbs,
+            PathSeg::LinetoVerticalRel( .. ) => PathSegType::LinetoVerticalRel,
+            PathSeg::CurvetoCubicSmoothAbs( .. ) => PathSegType::CurvetoCubicSmoothAbs,
+            PathSeg::CurvetoCubicSmoothRel( .. ) => PathSegType::CurvetoCubicSmoothRel,
+            PathSeg::CurvetoQuadraticSmoothAbs( .. ) => PathSegType::CurvetoQuadraticSmoothAbs,
+            PathSeg::CurvetoQuadraticSmoothRel( .. ) => PathSegType::CurvetoQuadraticSmoothRel,
         }
     }
 }
@@ -440,90 +364,68 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
                 Ok(PathSeg::Closepath)
             }
             PathSegType::MovetoAbs => {
-                Ok(PathSeg::MovetoAbs { p: try!(self.get_coordinate_pair()) })
+                Ok(PathSeg::MovetoAbs(try!(self.get_coordinate_pair())))
             }
             PathSegType::MovetoRel => {
-                Ok(PathSeg::MovetoRel { p: try!(self.get_coordinate_pair()) })
+                Ok(PathSeg::MovetoRel(try!(self.get_coordinate_pair())))
             }
             PathSegType::LinetoAbs => {
-                Ok(PathSeg::LinetoAbs { p: try!(self.get_coordinate_pair()) })
+                Ok(PathSeg::LinetoAbs(try!(self.get_coordinate_pair())))
             }
             PathSegType::LinetoRel => {
-                Ok(PathSeg::LinetoRel { p: try!(self.get_coordinate_pair()) })
+                Ok(PathSeg::LinetoRel(try!(self.get_coordinate_pair())))
             }
             PathSegType::CurvetoCubicAbs => {
                 let (p1, p2, p) = try!(self.get_three_coordinate_pairs());
-                Ok(PathSeg::CurvetoCubicAbs {
-                    p1: p1,
-                    p2: p2,
-                    p: p,
-                })
+                Ok(PathSeg::CurvetoCubicAbs(p1, p2, p))
             }
             PathSegType::CurvetoCubicRel => {
                 let (p1, p2, p) = try!(self.get_three_coordinate_pairs());
-                Ok(PathSeg::CurvetoCubicRel {
-                    p1: p1,
-                    p2: p2,
-                    p: p,
-                })
+                Ok(PathSeg::CurvetoCubicRel(p1, p2, p))
             }
             PathSegType::CurvetoQuadraticAbs => {
                 let (p1, p) = try!(self.get_two_coordinate_pairs());
-                Ok(PathSeg::CurvetoQuadraticAbs { p1: p1, p: p })
+                Ok(PathSeg::CurvetoQuadraticAbs(p1, p))
             }
             PathSegType::CurvetoQuadraticRel => {
                 let (p1, p) = try!(self.get_two_coordinate_pairs());
-                Ok(PathSeg::CurvetoQuadraticRel { p1: p1, p: p })
+                Ok(PathSeg::CurvetoQuadraticRel(p1, p))
             }
             PathSegType::ArcAbs => {
                 let (r1, r2, rotation, large_arc_flag, sweep_flag, p) =
                     try!(self.get_arc_argument());
-                Ok(PathSeg::ArcAbs {
-                    r1: r1,
-                    r2: r2,
-                    rotation: rotation,
-                    large_arc_flag: large_arc_flag,
-                    sweep_flag: sweep_flag,
-                    p: p,
-                })
+                Ok(PathSeg::ArcAbs(r1, r2, rotation, large_arc_flag, sweep_flag, p))
             }
             PathSegType::ArcRel => {
                 let (r1, r2, rotation, large_arc_flag, sweep_flag, p) =
                     try!(self.get_arc_argument());
-                Ok(PathSeg::ArcRel {
-                    r1: r1,
-                    r2: r2,
-                    rotation: rotation,
-                    large_arc_flag: large_arc_flag,
-                    sweep_flag: sweep_flag,
-                    p: p,
-                })
+                Ok(PathSeg::ArcRel(r1, r2, rotation, large_arc_flag, sweep_flag, p))
             }
             PathSegType::LinetoHorizontalAbs => {
-                Ok(PathSeg::LinetoHorizontalAbs { x: try!(self.get_number(false)) })
+                Ok(PathSeg::LinetoHorizontalAbs(try!(self.get_number(false))))
             }
             PathSegType::LinetoHorizontalRel => {
-                Ok(PathSeg::LinetoHorizontalRel { x: try!(self.get_number(false)) })
+                Ok(PathSeg::LinetoHorizontalRel(try!(self.get_number(false))))
             }
             PathSegType::LinetoVerticalAbs => {
-                Ok(PathSeg::LinetoVerticalAbs { y: try!(self.get_number(false)) })
+                Ok(PathSeg::LinetoVerticalAbs(try!(self.get_number(false))))
             }
             PathSegType::LinetoVerticalRel => {
-                Ok(PathSeg::LinetoVerticalRel { y: try!(self.get_number(false)) })
+                Ok(PathSeg::LinetoVerticalRel(try!(self.get_number(false))))
             }
             PathSegType::CurvetoCubicSmoothAbs => {
                 let (p2, p) = try!(self.get_two_coordinate_pairs());
-                Ok((PathSeg::CurvetoCubicSmoothAbs { p2: p2, p: p }))
+                Ok((PathSeg::CurvetoCubicSmoothAbs(p2, p)))
             }
             PathSegType::CurvetoCubicSmoothRel => {
                 let (p2, p) = try!(self.get_two_coordinate_pairs());
-                Ok((PathSeg::CurvetoCubicSmoothRel { p2: p2, p: p }))
+                Ok((PathSeg::CurvetoCubicSmoothRel(p2, p)))
             }
             PathSegType::CurvetoQuadraticSmoothAbs => {
-                Ok(PathSeg::CurvetoQuadraticSmoothAbs { p: try!(self.get_coordinate_pair()) })
+                Ok(PathSeg::CurvetoQuadraticSmoothAbs(try!(self.get_coordinate_pair())))
             }
             PathSegType::CurvetoQuadraticSmoothRel => {
-                Ok(PathSeg::CurvetoQuadraticSmoothRel { p: try!(self.get_coordinate_pair()) })
+                Ok(PathSeg::CurvetoQuadraticSmoothRel(try!(self.get_coordinate_pair())))
             }
         };
         return ret;
@@ -903,24 +805,24 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
 
         match path_seg {
             PathSeg::Closepath => Ok(()),
-            PathSeg::MovetoAbs { p } |
-            PathSeg::MovetoRel { p } |
-            PathSeg::LinetoAbs { p } |
-            PathSeg::LinetoRel { p } =>
+            PathSeg::MovetoAbs(p) |
+            PathSeg::MovetoRel(p) |
+            PathSeg::LinetoAbs(p) |
+            PathSeg::LinetoRel(p) =>
                 self.write_pair(p),
-            PathSeg::CurvetoCubicAbs { p1, p2, p } |
-            PathSeg::CurvetoCubicRel { p1, p2, p } => {
+            PathSeg::CurvetoCubicAbs(p1, p2, p) |
+            PathSeg::CurvetoCubicRel(p1, p2, p) => {
                 try!(self.write_pair(p1));
                 try!(self.write_pair(p2));
                 self.write_pair(p)
             }
-            PathSeg::CurvetoQuadraticAbs { p1, p } |
-            PathSeg::CurvetoQuadraticRel { p1, p } => {
+            PathSeg::CurvetoQuadraticAbs(p1, p) |
+            PathSeg::CurvetoQuadraticRel(p1, p) => {
                 try!(self.write_pair(p1));
                 self.write_pair(p)
             }
-            PathSeg::ArcAbs { r1, r2, rotation, large_arc_flag, sweep_flag, p } |
-            PathSeg::ArcRel { r1, r2, rotation, large_arc_flag, sweep_flag, p } => {
+            PathSeg::ArcAbs(r1, r2, rotation, large_arc_flag, sweep_flag, p) |
+            PathSeg::ArcRel(r1, r2, rotation, large_arc_flag, sweep_flag, p) => {
                 try!(self.write_num(r1));
                 try!(self.write_num(r2));
                 try!(self.write_num(rotation));
@@ -928,19 +830,19 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
                 try!(self.write_flag(sweep_flag));
                 self.write_pair(p)
             }
-            PathSeg::LinetoHorizontalAbs { x } |
-            PathSeg::LinetoHorizontalRel { x } =>
+            PathSeg::LinetoHorizontalAbs(x) |
+            PathSeg::LinetoHorizontalRel(x) =>
                 self.write_num(x),
-            PathSeg::LinetoVerticalAbs { y } |
-            PathSeg::LinetoVerticalRel { y } =>
+            PathSeg::LinetoVerticalAbs(y) |
+            PathSeg::LinetoVerticalRel(y) =>
                 self.write_num(y),
-            PathSeg::CurvetoCubicSmoothAbs { p2, p } |
-            PathSeg::CurvetoCubicSmoothRel { p2, p } => {
+            PathSeg::CurvetoCubicSmoothAbs(p2, p) |
+            PathSeg::CurvetoCubicSmoothRel(p2, p) => {
                 try!(self.write_pair(p2));
                 self.write_pair(p)
             }
-            PathSeg::CurvetoQuadraticSmoothAbs { p } |
-            PathSeg::CurvetoQuadraticSmoothRel { p } =>
+            PathSeg::CurvetoQuadraticSmoothAbs(p) |
+            PathSeg::CurvetoQuadraticSmoothRel(p) =>
                 self.write_pair(p),
         }
     }
@@ -954,7 +856,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
 /// use svg_util::path::{PathSeg, print_all_pathsegs};
 ///
 /// let mut str = String::new();
-/// let segs : [PathSeg<i8>; 2] = [PathSeg::MovetoAbs{ p: (1,1) }, PathSeg::LinetoRel{ p: (1,1) }];
+/// let segs : [PathSeg<i8>; 2] = [PathSeg::MovetoAbs((1,1)), PathSeg::LinetoRel((1,1))];
 /// print_all_pathsegs(&mut str, &segs, None).unwrap();
 /// assert_eq!(str, "M1 1l1 1");
 /// ```
@@ -1017,43 +919,43 @@ impl <T: Copy + Add<T, Output=T> + Sub<T, Output=T>> PathSegToPrimitive<T> {
                 self.quadratic_smooth = self.pos;
                 Primitive::Closepath
             }
-            PathSeg::MovetoAbs { p } => {
+            PathSeg::MovetoAbs(p) => {
                 self.pos = p;
                 self.cubic_smooth = p;
                 self.quadratic_smooth = p;
                 self.last_move = p;
-                Primitive::Moveto { p: p}
+                Primitive::Moveto(p)
             }
-            PathSeg::MovetoRel { p } => {
+            PathSeg::MovetoRel(p) => {
                 let p_abs = to_abs(self.pos, p);
                 
                 self.pos = p_abs;
                 self.cubic_smooth = p_abs;
                 self.quadratic_smooth = p_abs;
                 self.last_move = p_abs;
-                Primitive::Moveto { p: p_abs}
+                Primitive::Moveto(p_abs)
             }
-            PathSeg::LinetoAbs { p } => {
+            PathSeg::LinetoAbs(p) => {
                 self.pos = p;
                 self.cubic_smooth = p;
                 self.quadratic_smooth = p;
-                Primitive::Lineto { p: p}
+                Primitive::Lineto(p)
             }
-            PathSeg::LinetoRel { p } => {
+            PathSeg::LinetoRel(p) => {
                 let p_abs = to_abs(self.pos, p);
                 
                 self.pos = p_abs;
                 self.cubic_smooth = p_abs;
                 self.quadratic_smooth = p_abs;
-                Primitive::Lineto { p: p_abs}
+                Primitive::Lineto(p_abs)
             }
-            PathSeg::CurvetoCubicAbs { p1, p2, p } => {
+            PathSeg::CurvetoCubicAbs(p1, p2, p) => {
                 self.pos = p;
                 self.cubic_smooth = predict(p, p2);
                 self.quadratic_smooth = p;
-                Primitive::CurvetoCubic { p1: p1, p2: p2, p: p}
+                Primitive::CurvetoCubic(p1, p2, p)
             }
-            PathSeg::CurvetoCubicRel { p1, p2, p } => {
+            PathSeg::CurvetoCubicRel(p1, p2, p) => {
                 let p1_abs = to_abs(self.pos, p1);
                 let p2_abs = to_abs(self.pos, p2);
                 let p_abs = to_abs(self.pos, p);
@@ -1061,82 +963,82 @@ impl <T: Copy + Add<T, Output=T> + Sub<T, Output=T>> PathSegToPrimitive<T> {
                 self.pos = p_abs;
                 self.cubic_smooth = predict(p_abs, p2_abs);
                 self.quadratic_smooth = p_abs;
-                Primitive::CurvetoCubic { p1: p1_abs, p2: p2_abs, p: p_abs}
+                Primitive::CurvetoCubic(p1_abs, p2_abs, p_abs)
             }
-            PathSeg::CurvetoQuadraticAbs { p1, p } => {
+            PathSeg::CurvetoQuadraticAbs(p1, p) => {
                 self.pos = p;
                 self.cubic_smooth = p;
                 self.quadratic_smooth = predict(p, p1);
-                Primitive::CurvetoQuadratic { p1: p1, p: p}
+                Primitive::CurvetoQuadratic(p1, p)
             }
-            PathSeg::CurvetoQuadraticRel { p1, p } => {
+            PathSeg::CurvetoQuadraticRel(p1, p) => {
                 let p1_abs = to_abs(self.pos, p1);
                 let p_abs = to_abs(self.pos, p);
                 
                 self.pos = p_abs;
                 self.cubic_smooth = p_abs;
                 self.quadratic_smooth = predict(p_abs, p1_abs);
-                Primitive::CurvetoQuadratic { p1: p1_abs, p: p_abs }
+                Primitive::CurvetoQuadratic(p1_abs, p_abs)
             }
-            PathSeg::ArcAbs { r1, r2, rotation, large_arc_flag, sweep_flag, p } => {
+            PathSeg::ArcAbs(r1, r2, rotation, large_arc_flag, sweep_flag, p) => {
                 self.pos = p;
                 self.cubic_smooth = p;
                 self.quadratic_smooth = p;
-                Primitive::Arc { r1: r1, r2: r2, rotation: rotation, large_arc_flag: large_arc_flag, sweep_flag: sweep_flag, p: p }
+                Primitive::Arc(r1, r2, rotation, large_arc_flag, sweep_flag, p)
             }
-            PathSeg::ArcRel { r1, r2, rotation, large_arc_flag, sweep_flag, p } => {
+            PathSeg::ArcRel(r1, r2, rotation, large_arc_flag, sweep_flag, p) => {
                 let p_abs = to_abs(self.pos, p);
                 
                 self.pos = p_abs;
                 self.cubic_smooth = p_abs;
                 self.quadratic_smooth = p_abs;
-                Primitive::Arc { r1: r1, r2: r2, rotation: rotation, large_arc_flag: large_arc_flag, sweep_flag: sweep_flag, p: p_abs }
+                Primitive::Arc(r1, r2, rotation, large_arc_flag, sweep_flag, p_abs)
             }
-            PathSeg::LinetoHorizontalAbs { x } => {
+            PathSeg::LinetoHorizontalAbs(x) => {
                  let (_, y) = self.pos;
                  let p = (x, y);
                  
                  self.pos = p;
                  self.cubic_smooth = p;
                  self.quadratic_smooth = p;
-                 Primitive::Lineto { p: p }
+                 Primitive::Lineto(p)
             }
-            PathSeg::LinetoHorizontalRel { x } => {
+            PathSeg::LinetoHorizontalRel(x) => {
                  let (x_old, y) = self.pos;
                  let p = (x + x_old, y);
                  
                  self.pos = p;
                  self.cubic_smooth = p;
                  self.quadratic_smooth = p;
-                 Primitive::Lineto { p: p }
+                 Primitive::Lineto(p)
             }
-            PathSeg::LinetoVerticalAbs { y } => {
+            PathSeg::LinetoVerticalAbs(y) => {
                  let (x, _) = self.pos;
                  let p = (x, y);
                  
                  self.pos = p;
                  self.cubic_smooth = p;
                  self.quadratic_smooth = p;
-                 Primitive::Lineto { p: p }
+                 Primitive::Lineto(p)
             }
-            PathSeg::LinetoVerticalRel { y } => {
+            PathSeg::LinetoVerticalRel(y) => {
                  let (x, y_old) = self.pos;
                  let p = (x, y + y_old);
                  
                  self.pos = p;
                  self.cubic_smooth = p;
                  self.quadratic_smooth = p;
-                 Primitive::Lineto { p: p }
+                 Primitive::Lineto(p)
             }
-            PathSeg::CurvetoCubicSmoothAbs { p2, p } => {
+            PathSeg::CurvetoCubicSmoothAbs(p2, p) => {
                 let p1 = self.cubic_smooth;
                 
                 self.pos = p;
                 self.cubic_smooth = predict(p, p2);
                 self.quadratic_smooth = p;
-                Primitive::CurvetoCubic { p1: p1, p2: p2, p: p}
+                Primitive::CurvetoCubic(p1, p2, p)
             }
-            PathSeg::CurvetoCubicSmoothRel { p2, p } => {
+            PathSeg::CurvetoCubicSmoothRel(p2, p) => {
                 let p1_abs = self.cubic_smooth;
                 let p2_abs = to_abs(self.pos, p2);
                 let p_abs = to_abs(self.pos, p);
@@ -1144,24 +1046,24 @@ impl <T: Copy + Add<T, Output=T> + Sub<T, Output=T>> PathSegToPrimitive<T> {
                 self.pos = p_abs;
                 self.cubic_smooth = predict(p_abs, p2_abs);
                 self.quadratic_smooth = p_abs;
-                Primitive::CurvetoCubic { p1: p1_abs, p2: p2_abs, p: p_abs}
+                Primitive::CurvetoCubic(p1_abs, p2_abs, p_abs)
             }
-            PathSeg::CurvetoQuadraticSmoothAbs { p } => {
+            PathSeg::CurvetoQuadraticSmoothAbs(p) => {
                 let p1 = self.quadratic_smooth;
                 
                 self.pos = p;
                 self.cubic_smooth = p;
                 self.quadratic_smooth = predict(p, p1);
-                Primitive::CurvetoQuadratic { p1: p1, p: p}
+                Primitive::CurvetoQuadratic(p1, p)
             }
-            PathSeg::CurvetoQuadraticSmoothRel { p } => {
+            PathSeg::CurvetoQuadraticSmoothRel(p) => {
                 let p1_abs = self.quadratic_smooth;
                 let p_abs = to_abs(self.pos, p);
                 
                 self.pos = p_abs;
                 self.cubic_smooth = p_abs;
                 self.quadratic_smooth = predict(p_abs, p1_abs);
-                Primitive::CurvetoQuadratic { p1: p1_abs, p: p_abs }
+                Primitive::CurvetoQuadratic(p1_abs, p_abs)
             }
         }
     }
