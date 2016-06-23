@@ -1,5 +1,6 @@
 extern crate svg_util;
 use svg_util::path::{PathSegReader, PathSegWriter};
+use svg_util::primitive;
 
 #[test]
 fn blub() {
@@ -12,4 +13,16 @@ fn blub() {
         }
     }
     println!("{}", str);
+}
+
+#[test]
+fn test_optimizing() {
+    let (primitives, err, precision) = primitive::parse_path("M 100 100 L 101 101");
+    let mut str = String::new();
+    let _ : Vec<primitive::Primitive<f64>> = primitives;
+    let res = primitive::write_path(&mut str, &primitives);
+    assert!(res.is_ok());
+    assert_eq!(str, "m100 100 1 1");
+    assert_eq!(err, None);
+    assert_eq!(precision, 0);
 }

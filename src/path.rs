@@ -9,7 +9,7 @@
 //! from the `primitive` module is probably a better idea.
 
 use primitive::Primitive;
-use util::{TokenWritten, DropLeadingZero, DropTrailingZeros};
+use util::{TokenWritten, DropLeadingZero, DropTrailingZeros, Count};
 
 use std::fmt;
 use std::fmt::{Write, Display};
@@ -797,8 +797,16 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
 
         // Don't repeat the character for setting the type of the `PathSeg` when it's still the same.
         // Except: `z`/`Z` or when pretty printing.
-        if self.mode != old_mode || path_seg_type == PathSegType::ClosepathAbs ||
-           path_seg_type == PathSegType::ClosepathRel || self.pretty {
+        let need_mode_character = self.pretty || match (path_seg_type, old_mode) {
+            (_, None) => true,
+            (PathSegType::ClosepathAbs, _) => true,
+            (PathSegType::ClosepathRel, _) => true,
+            (PathSegType::LinetoAbs, Some(PathSegType::MovetoAbs)) => false,
+            (PathSegType::LinetoRel, Some(PathSegType::MovetoRel)) => false,
+            (new, Some(old)) => new != old           
+        };
+
+        if need_mode_character {
             try!(self.sink.write_char(path_seg_type.into()));
             self.last_token = TokenWritten::NotANumber;
         }
@@ -846,21 +854,38 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
                 self.write_pair(p),
         }
     }
+
+    /// Test how much bytes writing a `PathSeg` would emit, without changing any state.
+    pub fn test_write<T: Display + Copy>(&self, path_seg: PathSeg<T>) -> usize {
+        let mut count = Count { len: 0 };
+        let mut psw_copy = PathSegWriter {
+            sink: &mut count,
+            mode: self.mode,
+            pretty: self.pretty,
+            precision: self.precision,
+            last_token: self.last_token,
+        };
+        let res = psw_copy.write(path_seg);
+        if res.is_err() {
+            panic!("writing in a `Count` shouldn't return Errors");
+        }
+        psw_copy.sink.len
+    }
 }
 
-/// Prints all `PathSeg`s from a slice into a `Write`.
+/// Writes all `PathSeg`s from a slice into a `Write`.
 ///
 /// # Examples
 /// 
 /// ```
-/// use svg_util::path::{PathSeg, print_all_pathsegs};
+/// use svg_util::path::{PathSeg, write_all_pathsegs};
 ///
 /// let mut str = String::new();
 /// let segs : [PathSeg<i8>; 2] = [PathSeg::MovetoAbs((1,1)), PathSeg::LinetoRel((1,1))];
-/// print_all_pathsegs(&mut str, &segs, None).unwrap();
+/// write_all_pathsegs(&mut str, &segs, None).unwrap();
 /// assert_eq!(str, "M1 1l1 1");
 /// ```
-pub fn print_all_pathsegs<'a, W: Write, T: Display + Copy>(sink: &mut W, pathsegs: &'a[PathSeg<T>], precision: Option<usize>) -> Result<(), fmt::Error> {
+pub fn write_all_pathsegs<'a, W: Write, T: Display + Copy>(sink: &mut W, pathsegs: &'a[PathSeg<T>], precision: Option<usize>) -> Result<(), fmt::Error> {
     let mut writer = PathSegWriter::new(sink).with_precision_limit(precision);
     for seg in pathsegs {
         try!(writer.write(seg.clone()));

@@ -376,3 +376,22 @@ fn test_drop() {
     assert_eq!(token, TokenWritten::WithDotOrE);
     assert_eq!(s, " .1");
 }
+
+/// A struct implementing `Write` that just counts the bytes written.
+#[derive(Copy, Clone)]
+pub struct Count{ pub len: usize}
+
+impl Write for Count {
+    fn write_str(&mut self, s: &str) -> Result<(), Error> {
+        self.len += s.len();
+        Ok(())
+    }
+}
+
+#[test]
+fn test_count() {
+    let mut count = Count{len: 0};
+    let result = count.write_str("hello world!");
+    assert!(result.is_ok());
+    assert_eq!(count.len, 12);
+}

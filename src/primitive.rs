@@ -2,7 +2,7 @@
 //!
 //! blub
 
-use path::{PathSeg, PathSegReader, PathSegToPrimitive, Error};
+use path::{PathSeg, PathSegReader, PathSegToPrimitive, Error, PathSegWriter};
 use std::fmt;
 use std::fmt::Display;
 use std::str::FromStr;
@@ -168,4 +168,107 @@ impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Default> Into
     fn into_iter(self) -> PathPrimitives<'a, T> {
         self.into()
     }
+}
+
+pub struct PathWriter<'a, W: 'a + fmt::Write, T> {
+    psw: PathSegWriter<'a, W>,
+    /// The position we're currently at.
+    pos: (T,T),
+    /// Where we moved to with the last move.
+    last_move: (T,T),
+}
+
+impl <'a, W: 'a + fmt::Write, T: Default> PathWriter<'a, W, T> {
+    pub fn new(sink: &'a mut W) -> PathWriter<'a, W, T> {
+        PathWriter {
+            psw: PathSegWriter::new(sink),
+            pos: (Default::default(), Default::default()),
+            last_move: (Default::default(), Default::default()),
+        }
+    }
+}
+
+fn to_rel<T: Sub<T, Output=T>>(pos: (T,T), abs: (T, T)) -> (T, T) {
+    let (abs_x, abs_y) = abs;
+    let (pos_x, pos_y) = pos;
+    (abs_x - pos_x, abs_y - pos_y)
+}
+
+impl <'a, W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Display> PathWriter<'a, W, T> {
+    pub fn write(&mut self, primitive: Primitive<T>) -> Result<(), fmt::Error> {
+        let path_segs = match primitive {
+            Primitive::Closepath => {
+                // Current position moves back on closepath.
+                self.pos = self.last_move;
+                let pathseg : PathSeg<T> = PathSeg::Closepath;
+                return self.psw.write(pathseg);
+            }
+            Primitive::Moveto(p) => {
+                let path_segs = [
+                    PathSeg::MovetoAbs(p),
+                    PathSeg::MovetoRel(to_rel(self.pos, p))
+                ];
+                self.pos = p;
+                self.last_move = p;
+                path_segs
+            }
+            Primitive::Lineto(p) => {
+                let path_segs = [
+                    PathSeg::LinetoAbs(p),
+                    PathSeg::LinetoRel(to_rel(self.pos, p))
+                ];
+                self.pos = p;
+                path_segs
+            }
+            Primitive::CurvetoCubic(p1, p2, p) => {
+                let path_segs = [
+                    PathSeg::CurvetoCubicAbs(p1, p2, p),
+                    PathSeg::CurvetoCubicRel(to_rel(self.pos, p1), to_rel(self.pos, p2), to_rel(self.pos, p))
+                ];
+                self.pos = p;
+                path_segs
+            }
+            Primitive::CurvetoQuadratic(p1, p) => {
+                let path_segs = [
+                    PathSeg::CurvetoQuadraticAbs(p1, p),
+                    PathSeg::CurvetoQuadraticRel(to_rel(self.pos, p1), to_rel(self.pos, p))
+                ];
+                self.pos = p;
+                path_segs
+            }
+            Primitive::Arc(r1, r2, rot, f1, f2, p) => {
+                let path_segs = [
+                    PathSeg::ArcAbs(r1, r2, rot, f1, f2, p),
+                    PathSeg::ArcAbs(r1, r2, rot, f1, f2, to_rel(self.pos, p))
+                ];
+                self.pos = p;
+                path_segs
+            }
+        };
+        if self.psw.test_write(path_segs[0]) < self.psw.test_write(path_segs[0]) {
+            self.psw.write(path_segs[0])
+        } else {
+            self.psw.write(path_segs[1])
+        }
+    }
+}
+
+/// Writes all Primitives from a slice into a Write.
+///
+/// # Examples
+/// 
+/// ```
+/// use svg_util::primitive::{Primitive, write_path};
+///
+/// let mut str = String::new();
+/// let segs : [Primitive<i8>; 2] = [Primitive::Moveto((1,1)), Primitive::Lineto((2,2))];
+/// write_path(&mut str, &segs).unwrap();
+/// assert_eq!(str, "m1 1 1 1");
+/// ```
+pub fn write_path<'a, W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Display + Default>(sink: &mut W, primitives: &'a [Primitive<T>]) ->  Result<(), fmt::Error> {
+    let mut pw = PathWriter::new(sink);
+    for primitive in primitives {
+        try!(pw.write(primitive.clone()));
+    }
+    Ok(())
 }

@@ -2,7 +2,11 @@ svg-util, a small SVG helper library written in Rust
 ====================================================
 
 This crate provides some helper data structures and functions for working with SVG files.
-Currently it only parses and prints SVG path strings.
+
+Features
+--------
+ - Parsing and printing of path strings, optionally into/from geometric primitives.
+ - Parsing `<line>`, `<rect>` (without rounded corners), `<circle>` and `<ellipse>` into geometric primitives.
 
 License
 -------
@@ -14,13 +18,13 @@ Version history
 Planned features
 ----------------
 
- - Complete the conversions from `Primitive` to `PathSeg`.
- - Helper functions to print `&[Primitive]` directly as a path string.
+ - Complete writing of `Primitive`s (precision, horizontal and vertical lines, smooth beziers and pretty printing).
  - Implement `FromStr` for `Primitive`.
  - Support to parse `<polygon>`s and `<polyline>`s into `Primitive`s.
  - Support to convert `<rect>`s with rounded corners into `Primitive`s.
  - Support for parsing and applying `transform`s.
- - Extensive testing.
+ - Extensive docmentation.
+ - Extensive testing (Maybe also using afl-rs).
  - Use `[feature]`s to make compilation time and binary size better for users. Optimized output, precision could be made into features that can be turned off.
  - Benchmarking and optimisation.
  - Maybe a C API.
