@@ -179,9 +179,9 @@ pub struct PathWriter<'a, W: 'a + fmt::Write, T> {
 }
 
 impl <'a, W: 'a + fmt::Write, T: Default> PathWriter<'a, W, T> {
-    pub fn new(sink: &'a mut W) -> PathWriter<'a, W, T> {
+    pub fn new(sink: &'a mut W, pretty: bool, precision: Option<usize>) -> PathWriter<'a, W, T> {
         PathWriter {
-            psw: PathSegWriter::new(sink),
+            psw: PathSegWriter::new(sink, pretty, precision),
             pos: (Default::default(), Default::default()),
             last_move: (Default::default(), Default::default()),
         }
@@ -268,11 +268,11 @@ impl <'a, W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Di
 ///
 /// let mut str = String::new();
 /// let segs : [Primitive<i8>; 2] = [Primitive::Moveto((1,1)), Primitive::Lineto((2,2))];
-/// write_path(&mut str, &segs).unwrap();
+/// write_path(&mut str, &segs, false, None).unwrap();
 /// assert_eq!(str, "M1 1 2 2");
 /// ```
-pub fn write_path<'a, W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Display + Default>(sink: &mut W, primitives: &'a [Primitive<T>]) ->  Result<(), fmt::Error> {
-    let mut pw = PathWriter::new(sink);
+pub fn write_path<'a, W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Display + Default>(sink: &mut W, primitives: &'a [Primitive<T>], pretty: bool, precision: Option<usize>) ->  Result<(), fmt::Error> {
+    let mut pw = PathWriter::new(sink, pretty, precision);
     for primitive in primitives {
         try!(pw.write(primitive.clone()));
     }

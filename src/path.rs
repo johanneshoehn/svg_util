@@ -196,7 +196,7 @@ impl<T> PathSeg<T> {
 
 impl<T: Display + Copy> fmt::Debug for PathSeg<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let mut writer = PathSegWriter::new_pretty(f);
+        let mut writer = PathSegWriter::new(f, true, None);
         let seg = self.clone();
         writer.write(seg)
     }
@@ -667,23 +667,6 @@ impl<'a, T: Copy + FromStr> IntoIterator for PathSegReader<'a, T> {
     }
 }
 
-impl<'a, T: Copy + Display + FromStr> fmt::Display for PathSegReader<'a, T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let mut writer = PathSegWriter::new(f);
-        for maybe_seg in self.into_iter() {
-            match maybe_seg {
-                Ok(seg) => {
-                    try!(writer.write(seg));
-                }
-                Err(_) => {
-                    return Err(fmt::Error);
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
 /// Writes `PathSeg`s as strings either in a space-saving or human readable format.
 ///
 /// Because this needs a mutable `Write` you first have to
@@ -704,34 +687,19 @@ pub struct PathSegWriter<'a, W: 'a + Write> {
 }
 
 impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
-    /// Creates a new `PathSegWriter` that writes in a space-saving way.
-    pub fn new(sink: &'a mut W) -> PathSegWriter<'a, W> {
-        PathSegWriter {
-            sink: sink,
-            mode: None,
-            pretty: false,
-            precision: None,
-            last_token: TokenWritten::NotANumber,
-        }
-    }
-    /// Creates a new `PathSegWriter` that writes in a pretty, human-readable way.
-    pub fn new_pretty(sink: &'a mut W) -> PathSegWriter<W> {
-        PathSegWriter {
-            sink: sink,
-            mode: None,
-            pretty: true,
-            precision: None,
-            last_token: TokenWritten::NotANumber,
-        }
-    }
-    
-    /// Set the maximum amount of digits printed after a decimal.
-    /// Default is `None`, which means no limit.
+    /// Creates a new `PathSegWriter`.
     ///
-    /// Warning: If you have many small relative segments, the error will add up and distort the path dramatically. 
-    pub fn with_precision_limit(mut self, precision: Option<usize>) -> PathSegWriter<'a, W> {
-        self.precision = precision;
-        self
+    /// The `pretty` argument decides wether to write in a space-saving or pretty, human-readable way.
+    /// `precision` sets the maximum amount of digits printed after a decimal. `None` means no limit.
+    /// Warning: If you have many small relative segments, the error can add up and distort the path dramatically. 
+    pub fn new(sink: &'a mut W, pretty: bool, precision: Option<usize>) -> PathSegWriter<'a, W> {
+        PathSegWriter {
+            sink: sink,
+            mode: None,
+            pretty: pretty,
+            precision: precision,
+            last_token: TokenWritten::NotANumber,
+        }
     }
     
     /// Write one number
@@ -882,11 +850,11 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
 ///
 /// let mut str = String::new();
 /// let segs : [PathSeg<i8>; 2] = [PathSeg::MovetoAbs((1,1)), PathSeg::LinetoRel((1,1))];
-/// write_all_pathsegs(&mut str, &segs, None).unwrap();
+/// write_all_pathsegs(&mut str, &segs, false, None).unwrap();
 /// assert_eq!(str, "M1 1l1 1");
 /// ```
-pub fn write_all_pathsegs<'a, W: Write, T: Display + Copy>(sink: &mut W, pathsegs: &'a[PathSeg<T>], precision: Option<usize>) -> Result<(), fmt::Error> {
-    let mut writer = PathSegWriter::new(sink).with_precision_limit(precision);
+pub fn write_all_pathsegs<'a, W: Write, T: Display + Copy>(sink: &mut W, pathsegs: &'a[PathSeg<T>], pretty: bool, precision: Option<usize>) -> Result<(), fmt::Error> {
+    let mut writer = PathSegWriter::new(sink, pretty, precision);
     for seg in pathsegs {
         try!(writer.write(seg.clone()));
     }
