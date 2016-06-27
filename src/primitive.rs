@@ -245,9 +245,15 @@ impl <'a, W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Di
                 path_segs
             }
         };
-        if self.psw.test_write(path_segs[0]) < self.psw.test_write(path_segs[0]) {
+
+        // Select the shorter path segment.
+        // Prefer writing absolute path segments when both have the same lengh.
+        // Absolute path segments have the advantage that they don't accumulate rounding errors.
+        if self.psw.test_write(path_segs[0]) <= self.psw.test_write(path_segs[1]) {
+            // Write absolute path segment.
             self.psw.write(path_segs[0])
         } else {
+            // Write relative path segment.
             self.psw.write(path_segs[1])
         }
     }
@@ -263,7 +269,7 @@ impl <'a, W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Di
 /// let mut str = String::new();
 /// let segs : [Primitive<i8>; 2] = [Primitive::Moveto((1,1)), Primitive::Lineto((2,2))];
 /// write_path(&mut str, &segs).unwrap();
-/// assert_eq!(str, "m1 1 1 1");
+/// assert_eq!(str, "M1 1 2 2");
 /// ```
 pub fn write_path<'a, W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Display + Default>(sink: &mut W, primitives: &'a [Primitive<T>]) ->  Result<(), fmt::Error> {
     let mut pw = PathWriter::new(sink);

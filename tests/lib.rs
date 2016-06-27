@@ -22,7 +22,7 @@ fn test_optimizing() {
     let _ : Vec<primitive::Primitive<f64>> = primitives;
     let res = primitive::write_path(&mut str, &primitives);
     assert!(res.is_ok());
-    assert_eq!(str, "m100 100 1 1");
+    assert_eq!(str, "M100 100l1 1");
     assert_eq!(err, None);
     assert_eq!(precision, 0);
 }
