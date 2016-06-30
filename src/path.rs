@@ -607,7 +607,8 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
 ///
 /// Returns all `PathSeg`s that were parsed until an error occurred or the string was empty,
 /// the error if one occured and the maximum precision.
-pub fn parse_all_pathsegs<'a, T: Copy + FromStr, B: AsRef<[u8]> + ?Sized>(src: &'a B) -> (Vec<PathSeg<T>>, Option<Error>, usize) {
+pub fn parse_all_pathsegs<'a, T, B: ?Sized>(src: &'a B) -> (Vec<PathSeg<T>>, Option<Error>, usize)
+where T: Copy + FromStr, B: AsRef<[u8]> {
     let mut parser = PathSegReader::new(src);
     let mut array = Vec::new();
     loop {

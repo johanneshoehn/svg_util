@@ -31,14 +31,15 @@ impl<T: Display + Copy> fmt::Debug for Primitive<T> {
 }
 
 /// Parse a [`<line>`](http://www.w3.org/TR/SVG11/shapes.html#LineElement) into an array of primitives.
-pub fn parse_line<T: Copy>(x1: T, y1: T, x2: T, y2: T) -> [Primitive<T>; 2] {
+pub fn parse_line<T>(x1: T, y1: T, x2: T, y2: T) -> [Primitive<T>; 2] {
     [Primitive::Moveto((x1, y1)), Primitive::Lineto((x2, y2))]
 }
 
 /// Parse a [`<circle>`](http://www.w3.org/TR/SVG11/shapes.html#CircleElement) into an array of primitives.
 ///
 /// Note that you need to check that r is positive.
-pub fn parse_circle<T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Default>(cx: T, cy: T, r: T) -> [Primitive<T>; 4] {
+pub fn parse_circle<T>(cx: T, cy: T, r: T) -> [Primitive<T>; 4]
+where T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Default {
     [Primitive::Moveto((cx+r, cy)),
      Primitive::Arc(r, r, Default::default(), false, true, (cx-r, cy)),
      Primitive::Arc(r, r, Default::default(), false, true, (cx+r, cy)),
@@ -48,7 +49,8 @@ pub fn parse_circle<T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Default>(cx:
 /// Parse an [`<ellipse>`](http://www.w3.org/TR/SVG11/shapes.html#EllipseElement) into an array of primitives.
 ///
 /// Note that you need to check that `rx` and `ry` are positive.
-pub fn parse_ellipse<T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Default>(cx: T, cy: T, rx: T, ry: T) -> [Primitive<T>; 4] {
+pub fn parse_ellipse<T>(cx: T, cy: T, rx: T, ry: T) -> [Primitive<T>; 4]
+where T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Default {
     [Primitive::Moveto((cx+rx, cy)),
      Primitive::Arc(rx, ry, Default::default(), false, true, (cx-rx, cy)),
      Primitive::Arc(rx, ry, Default::default(), false, true, (cx+rx, cy)),
@@ -58,7 +60,8 @@ pub fn parse_ellipse<T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Default>(cx
 /// Parse a [`<rect>`](http://www.w3.org/TR/SVG11/shapes.html#RectElement) without corners into an array of primitives.
 ///
 /// Note that `width` and `height` need to be larger than zero according to the spec.
-pub fn parse_simple_rect<T: Copy + Add<T, Output=T>>(x: T, y: T, width: T, height: T) -> [Primitive<T>; 6] {
+pub fn parse_simple_rect<T>(x: T, y: T, width: T, height: T) -> [Primitive<T>; 6]
+where T: Copy + Add<T, Output=T> {
     [Primitive::Moveto((x, y)),
      Primitive::Lineto((x+width, y)),
      Primitive::Lineto((x+width, y+height)),
@@ -110,7 +113,8 @@ impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Default> Path
 ///
 /// Returns all path segments as `Primitive`s that were parsed until an error occurred or the string was empty,
 /// the error if one occured and the maximum precision.
-pub fn parse_path<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Default, B: AsRef<[u8]> + ?Sized>(src: &'a B) -> (Vec<Primitive<T>>, Option<Error>, usize) {
+pub fn parse_path<'a, T, B: ?Sized>(src: &'a B) -> (Vec<Primitive<T>>, Option<Error>, usize)
+where T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Default, B: AsRef<[u8]> {
     let mut parser = PathReader::new(src);
     let mut array = Vec::new();
     loop {
@@ -271,7 +275,8 @@ impl <'a, W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Di
 /// write_path(&mut str, &segs, false, None).unwrap();
 /// assert_eq!(str, "M1 1 2 2");
 /// ```
-pub fn write_path<'a, W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Display + Default>(sink: &mut W, primitives: &'a [Primitive<T>], pretty: bool, precision: Option<usize>) ->  Result<(), fmt::Error> {
+pub fn write_path<'a, 'b, W, T>(sink: &mut W, primitives: &'b [Primitive<T>], pretty: bool, precision: Option<usize>) ->  Result<(), fmt::Error>
+where W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Display + Default {
     let mut pw = PathWriter::new(sink, pretty, precision);
     for primitive in primitives {
         try!(pw.write(primitive.clone()));
