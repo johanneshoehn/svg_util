@@ -20,6 +20,8 @@ use std::str::FromStr;
 use std::ops::{Add, Sub};
 use std::convert::From;
 
+use num_traits::Zero;
+
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 #[repr(u8)]
 /// The different types of `PathSeg`s.
@@ -874,18 +876,15 @@ pub struct PathSegToPrimitive<T> {
     quadratic_smooth: (T, T),
 }
 
-impl <T: Default> PathSegToPrimitive<T> {
+impl <T: Zero> PathSegToPrimitive<T> {
     /// Create a new `PathSegToPrimitive` converter.
     /// It saves the state necessary to transform relative, smooth, and vertical/horizontal Segments into `Primitive`s
-    ///
-    /// FIXME: Doesn't work correctly for paths starting with `m`, if the `Default` value isn't zero.
-    /// The `Zero` trait however is still marked as unstable.
     pub fn new() -> Self {
         PathSegToPrimitive {
-            pos: (Default::default(), Default::default()),
-            last_move: (Default::default(), Default::default()),
-            cubic_smooth: (Default::default(), Default::default()),
-            quadratic_smooth: (Default::default(), Default::default()),
+            pos: (Zero::zero(), Zero::zero()),
+            last_move: (Zero::zero(), Zero::zero()),
+            cubic_smooth: (Zero::zero(), Zero::zero()),
+            quadratic_smooth: (Zero::zero(), Zero::zero()),
         }
     }
 }

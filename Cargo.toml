@@ -5,5 +5,9 @@ authors = ["Johannes Höhn <johannes.karl.hoehn@gmail.com>"]
 license = "CC0-1.0"
 
 description = "svg_util parses and prints SVG path strings"
+repository = "https://github.com/hannni/svg_util"
 readme = "README.md"
 keywords = ["svg"]
+
+[dependencies]
+num-traits = "0.1"

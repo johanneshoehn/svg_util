@@ -8,6 +8,8 @@ use std::fmt::Display;
 use std::str::FromStr;
 use std::ops::{Add, Sub};
 
+use num_traits::Zero;
+
 /// A geometric primitive.
 ///
 /// The geometric primitives that can represent all geometries supported by SVG.
@@ -39,10 +41,10 @@ pub fn parse_line<T>(x1: T, y1: T, x2: T, y2: T) -> [Primitive<T>; 2] {
 ///
 /// Note that you need to check that r is positive.
 pub fn parse_circle<T>(cx: T, cy: T, r: T) -> [Primitive<T>; 4]
-where T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Default {
+where T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Zero {
     [Primitive::Moveto((cx+r, cy)),
-     Primitive::Arc(r, r, Default::default(), false, true, (cx-r, cy)),
-     Primitive::Arc(r, r, Default::default(), false, true, (cx+r, cy)),
+     Primitive::Arc(r, r, Zero::zero(), false, true, (cx-r, cy)),
+     Primitive::Arc(r, r, Zero::zero(), false, true, (cx+r, cy)),
      Primitive::Closepath]
 }
 
@@ -50,10 +52,10 @@ where T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Default {
 ///
 /// Note that you need to check that `rx` and `ry` are positive.
 pub fn parse_ellipse<T>(cx: T, cy: T, rx: T, ry: T) -> [Primitive<T>; 4]
-where T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Default {
+where T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Zero {
     [Primitive::Moveto((cx+rx, cy)),
-     Primitive::Arc(rx, ry, Default::default(), false, true, (cx-rx, cy)),
-     Primitive::Arc(rx, ry, Default::default(), false, true, (cx+rx, cy)),
+     Primitive::Arc(rx, ry, Zero::zero(), false, true, (cx-rx, cy)),
+     Primitive::Arc(rx, ry, Zero::zero(), false, true, (cx+rx, cy)),
      Primitive::Closepath]
 }
 
@@ -76,7 +78,7 @@ pub struct PathReader<'a, T> {
     path_seg_to_primitive: PathSegToPrimitive<T>,
 }
 
-impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Default> PathReader<'a, T> {
+impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Zero> PathReader<'a, T> {
     /// Creates a new `PathReader` using for instance a `&str` or a `&[u8]`.
     pub fn new<B: AsRef<[u8]> + ?Sized>(src: &'a B) -> PathReader<'a, T> {
         PathReader {
@@ -114,7 +116,7 @@ impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Default> Path
 /// Returns all path segments as `Primitive`s that were parsed until an error occurred or the string was empty,
 /// the error if one occured and the maximum precision.
 pub fn parse_path<'a, T, B: ?Sized>(src: &'a B) -> (Vec<Primitive<T>>, Option<Error>, usize)
-where T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Default, B: AsRef<[u8]> {
+where T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Zero, B: AsRef<[u8]> {
     let mut parser = PathReader::new(src);
     let mut array = Vec::new();
     loop {
@@ -137,7 +139,7 @@ pub struct PathPrimitives<'a, T> {
     done: bool,
 }
 
-impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Default> Iterator for PathPrimitives<'a, T> {
+impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Zero> Iterator for PathPrimitives<'a, T> {
     type Item = Result<Primitive<T>, Error>;
 
     fn next(&mut self) -> Option<Result<Primitive<T>, Error>> {
@@ -165,7 +167,7 @@ impl<'a, T> From<PathReader<'a, T>> for PathPrimitives<'a, T> {
     }
 }
 
-impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Default> IntoIterator for PathReader<'a, T> {
+impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Zero> IntoIterator for PathReader<'a, T> {
     type Item = Result<Primitive<T>, Error>;
     type IntoIter = PathPrimitives<'a, T>;
 
@@ -182,12 +184,12 @@ pub struct PathWriter<'a, W: 'a + fmt::Write, T> {
     last_move: (T,T),
 }
 
-impl <'a, W: 'a + fmt::Write, T: Default> PathWriter<'a, W, T> {
+impl <'a, W: 'a + fmt::Write, T: Zero> PathWriter<'a, W, T> {
     pub fn new(sink: &'a mut W, pretty: bool, precision: Option<usize>) -> PathWriter<'a, W, T> {
         PathWriter {
             psw: PathSegWriter::new(sink, pretty, precision),
-            pos: (Default::default(), Default::default()),
-            last_move: (Default::default(), Default::default()),
+            pos: (Zero::zero(), Zero::zero()),
+            last_move: (Zero::zero(), Zero::zero()),
         }
     }
 }
@@ -276,7 +278,7 @@ impl <'a, W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Di
 /// assert_eq!(str, "M1 1 2 2");
 /// ```
 pub fn write_path<'a, 'b, W, T>(sink: &mut W, primitives: &'b [Primitive<T>], pretty: bool, precision: Option<usize>) ->  Result<(), fmt::Error>
-where W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Display + Default {
+where W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Display + Zero {
     let mut pw = PathWriter::new(sink, pretty, precision);
     for primitive in primitives {
         try!(pw.write(primitive.clone()));
