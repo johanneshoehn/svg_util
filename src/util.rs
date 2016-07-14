@@ -18,164 +18,31 @@ pub enum TokenWritten {
     WithDotOrE,
 }
 
-/// Drop trailing zeros of floats formatted according to the SVG spec.
-/// Needed because the precision argument of formatter prints exactly precision amount of digits.
-/// E.g. `"{:.3}", 1.1001` is printed `1.100` without this filter.
-pub struct DropTrailingZeros<'a, W: Write + 'a> {
-    writer: &'a mut W,
-    /// Wether to drop zeros. We shouldn't drop before a '.' was encountered, and not after an 'e'/'E' was encountered.
-    drop_zeros: bool,
-    /// Wether we dropped a '.'. We need to drop '.', so we don't print "1." instead of "1".
-    dot_dropped: bool,
-    /// The amount of zeros we dropped.
-    zeros_dropped: usize,
+/// Round a `f32` to the nearest `f32` that corresponds to a decimal number with max `precision` fractional digits.
+pub fn round_precision(val: f32, precision: u8) -> f32 {
+    // Convert to 64 bit float, to avoid overflow.
+    let val : f64 = f64::from(val);
+    let factor : f64 = (10.0f64).powi(precision as i32);
+    let result : f64 = (val * factor).round() / factor;
+    result as f32
 }
 
-impl <'a, W: Write> DropTrailingZeros<'a, W> {
-    pub fn new(writer: &'a mut W) -> DropTrailingZeros<'a, W> {
-        DropTrailingZeros {
-            writer: writer,
-            drop_zeros: false,
-            dot_dropped: false,
-            zeros_dropped: 0
-        }
-    }
-}
-
-impl <'a, W: Write> Write for DropTrailingZeros<'a, W> {
-    fn write_str(&mut self, s: &str) -> Result<(), Error> { 
-        if !self.drop_zeros {
-            if s.contains('.') {
-                let mut split = s.splitn(2, '.');
-                let before_dot = split.next().unwrap();
-                try!(self.writer.write_str(before_dot));
-                self.dot_dropped = true;
-                self.drop_zeros = true;
-                let after_dot = split.next().unwrap();
-                // handle the stuff after the dot recursively.
-                return self.write_str(after_dot);
-            } else {
-                return self.writer.write_str(s);
-            }
-        }
-        
-        let mut chars = s.chars();
-        while let Some(ch) = chars.next() {
-            match ch {
-                '0' => {
-                    self.zeros_dropped = self.zeros_dropped + 1;
-                }
-                'e' | 'E' => {
-                    // don't drop zeros anymore after e/E is encountered, "1e10" is not "1e1"
-                    self.drop_zeros = false;
-                    try!(self.writer.write_char(ch));
-                    return self.writer.write_str(chars.as_str());
-                }
-                _ => {
-                    if self.dot_dropped {
-                        self.dot_dropped = false;
-                        try!(self.writer.write_char('.'));
-                    }
-                    while self.zeros_dropped != 0 {
-                        self.zeros_dropped = self.zeros_dropped - 1;
-                        try!(self.writer.write_char('0'));
-                    }
-                    try!(self.writer.write_char(ch))
-                }
-            }
-        }
-        Ok(())
-    }
-    /*fn write_char(&mut self, c: char) -> Result<(), Error> {
-        
-    }*/
+pub fn round_precision_pair(val: (f32, f32), precision: u8) -> (f32, f32) {
+    let (x, y) = val;
+    (round_precision(x, precision), round_precision(y, precision))
 }
 
 #[test]
-fn test_trailing() {
-    let mut s = String::new();
-    {
-        let mut d = DropTrailingZeros::new(&mut s);
-        write!(&mut d, "1").unwrap();
-    }
-    assert_eq!(s, "1");
-    
-    let mut s = String::new();
-    {
-        let mut d = DropTrailingZeros::new(&mut s);
-        write!(&mut d, "-1").unwrap();
-    }
-    assert_eq!(s, "-1");
-    
-    let mut s = String::new();
-    {
-        let mut d = DropTrailingZeros::new(&mut s);
-        write!(&mut d, "0").unwrap();
-    }
-    assert_eq!(s, "0");
-    
-    let mut s = String::new();
-    {
-        let mut d = DropTrailingZeros::new(&mut s);
-        write!(&mut d, "0.0").unwrap();
-    }
-    assert_eq!(s, "0");
-    
-    let mut s = String::new();
-    {
-        let mut d = DropTrailingZeros::new(&mut s);
-        write!(&mut d, "0.1").unwrap();
-    }
-    assert_eq!(s, "0.1");
-    
-    let mut s = String::new();
-    {
-        let mut d = DropTrailingZeros::new(&mut s);
-        write!(&mut d, "0.10").unwrap();
-    }
-    assert_eq!(s, "0.1");
-    
-    let mut s = String::new();
-    {
-        let mut d = DropTrailingZeros::new(&mut s);
-        write!(&mut d, "0.01").unwrap();
-    }
-    assert_eq!(s, "0.01");
-    
-    let mut s = String::new();
-    {
-        let mut d = DropTrailingZeros::new(&mut s);
-        write!(&mut d, "0.010").unwrap();
-    }
-    assert_eq!(s, "0.01");
-    
-    let mut s = String::new();
-    {
-        let mut d = DropTrailingZeros::new(&mut s);
-        write!(&mut d, "0.101").unwrap();
-    }
-    assert_eq!(s, "0.101");
-    
-    let mut s = String::new();
-    {
-        let mut d = DropTrailingZeros::new(&mut s);
-        write!(&mut d, "0.1010").unwrap();
-    }
-    assert_eq!(s, "0.101");
-    
-    let mut s = String::new();
-    {
-        let mut d = DropTrailingZeros::new(&mut s);
-        write!(&mut d, "0.010e10").unwrap();
-    }
-    assert_eq!(s, "0.01e10");
-    
-    let mut s = String::new();
-    {
-        let mut d = DropTrailingZeros::new(&mut s);
-        write!(&mut d, "{:.2}", 0.999).unwrap();
-    }
-    assert_eq!(s, "1");
+fn test_rounding() {
+    // Some test variables.
+    // Exhaustive testing is probably possible and should be done.
+    assert_eq!(round_precision(0.4, 0), 0.0);
+    assert_eq!(round_precision(0.5, 0), 1.0);
+    assert_eq!(round_precision(0.6, 0), 1.0);
+    assert_eq!(round_precision(0.04, 1), 0.0);
+    assert_eq!(round_precision(0.15, 1), 0.2);
+    assert_eq!(round_precision(0.36, 1), 0.4);
+    assert_eq!(round_precision(0.99, 1), 1.0);
 }
 
 /// Optimizing filter for the output of one SVG number.

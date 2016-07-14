@@ -1,7 +1,7 @@
 //! The geometric primitives used in SVG: moves, lines, bezier curves and arcs.
 //!
 //! blub
-
+use util::{round_precision, round_precision_pair};
 use path::{PathSeg, PathSegReader, PathSegToPrimitive, Error, PathSegWriter};
 use std::fmt;
 use std::fmt::Display;
@@ -176,6 +176,8 @@ pub struct PathWriter<'a, W: 'a + fmt::Write> {
     pos: (f32, f32),
     /// Where we moved to with the last move.
     last_move: (f32, f32),
+    /// How many fractional digits to write max.
+    precision: Option<u8>,
     /// The value under which we consider values to be zero.
     epsilon: f32,
 }
@@ -197,18 +199,35 @@ impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
             None => EPSILON,
         };
         PathWriter {
-            psw: PathSegWriter::new(sink, pretty, precision),
+            psw: PathSegWriter::new(sink, pretty),
             pos: (0.0, 0.0),
             last_move: (0.0, 0.0),
+            precision: precision,
             epsilon: epsilon,
+        }
+    }
+
+    fn round(&self, val: f32) -> f32 {
+        match self.precision {
+            Some(p) => {
+                round_precision(val, p)
+            }
+            None => val
+        }
+    }
+
+    fn round_pair(&self, pair: (f32, f32)) -> (f32, f32) {
+        match self.precision {
+            Some(p) => {
+                round_precision_pair(pair, p)
+            }
+            None => pair
         }
     }
 }
 
 fn to_rel(pos: (f32, f32), abs: (f32, f32)) -> (f32, f32) {
-    let (abs_x, abs_y) = abs;
-    let (pos_x, pos_y) = pos;
-    (abs_x - pos_x, abs_y - pos_y)
+    (abs.0 - pos.0, abs.1 - pos.1)
 }
 
 impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
@@ -220,10 +239,11 @@ impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
                 let pathseg : PathSeg = PathSeg::Closepath;
                 return self.psw.write(pathseg);
             }
+            // TODO: set `pos` and `last_move` using the rounded values
             Primitive::Moveto(p) => {
                 let path_segs = [
-                    PathSeg::MovetoAbs(p),
-                    PathSeg::MovetoRel(to_rel(self.pos, p))
+                    PathSeg::MovetoAbs(self.round_pair(p)),
+                    PathSeg::MovetoRel(self.round_pair(to_rel(self.pos, p)))
                 ];
                 self.pos = p;
                 self.last_move = p;
@@ -233,35 +253,35 @@ impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
                 let (pos_x, pos_y) = self.pos;
                 let (x, y) = p;
                 let path_segs = if (x - pos_x).abs() <= self.epsilon {
-                    [ PathSeg::LinetoVerticalAbs(y), PathSeg::LinetoVerticalRel(y - pos_y) ]
+                    [ PathSeg::LinetoVerticalAbs(self.round(y)), PathSeg::LinetoVerticalRel(self.round(y - pos_y)) ]
                 } else if (y - pos_y).abs() <= self.epsilon {
-                    [ PathSeg::LinetoHorizontalAbs(x), PathSeg::LinetoHorizontalRel(x - pos_x) ]
+                    [ PathSeg::LinetoHorizontalAbs(self.round(x)), PathSeg::LinetoHorizontalRel(self.round(x - pos_x)) ]
                 } else {
-                    [ PathSeg::LinetoAbs(p), PathSeg::LinetoRel(to_rel(self.pos, p)) ]
+                    [ PathSeg::LinetoAbs(self.round_pair(p)), PathSeg::LinetoRel(self.round_pair(to_rel(self.pos, p))) ]
                 };
                 self.pos = p;
                 path_segs
             }
             Primitive::CurvetoCubic(p1, p2, p) => {
                 let path_segs = [
-                    PathSeg::CurvetoCubicAbs(p1, p2, p),
-                    PathSeg::CurvetoCubicRel(to_rel(self.pos, p1), to_rel(self.pos, p2), to_rel(self.pos, p))
+                    PathSeg::CurvetoCubicAbs(self.round_pair(p1), self.round_pair(p2), self.round_pair(p)),
+                    PathSeg::CurvetoCubicRel(self.round_pair(to_rel(self.pos, p1)), self.round_pair(to_rel(self.pos, p2)), self.round_pair(to_rel(self.pos, p)))
                 ];
                 self.pos = p;
                 path_segs
             }
             Primitive::CurvetoQuadratic(p1, p) => {
                 let path_segs = [
-                    PathSeg::CurvetoQuadraticAbs(p1, p),
-                    PathSeg::CurvetoQuadraticRel(to_rel(self.pos, p1), to_rel(self.pos, p))
+                    PathSeg::CurvetoQuadraticAbs(self.round_pair(p1), self.round_pair(p)),
+                    PathSeg::CurvetoQuadraticRel(self.round_pair(to_rel(self.pos, p1)), self.round_pair(to_rel(self.pos, p)))
                 ];
                 self.pos = p;
                 path_segs
             }
             Primitive::Arc(r1, r2, rot, f1, f2, p) => {
                 let path_segs = [
-                    PathSeg::ArcAbs(r1, r2, rot, f1, f2, p),
-                    PathSeg::ArcAbs(r1, r2, rot, f1, f2, to_rel(self.pos, p))
+                    PathSeg::ArcAbs(self.round(r1), self.round(r2), self.round(rot), f1, f2, self.round_pair(p)),
+                    PathSeg::ArcAbs(self.round(r1), self.round(r2), self.round(rot), f1, f2, self.round_pair(to_rel(self.pos, p)))
                 ];
                 self.pos = p;
                 path_segs

@@ -9,7 +9,7 @@
 //! from the `primitive` module is probably a better idea.
 
 use primitive::Primitive;
-use util::{TokenWritten, DropLeadingZero, DropTrailingZeros, Count};
+use util::{TokenWritten, DropLeadingZero, Count};
 
 use std::fmt;
 use std::fmt::Write;
@@ -194,7 +194,7 @@ impl PathSeg {
 
 impl fmt::Debug for PathSeg {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        let mut writer = PathSegWriter::new(f, true, None);
+        let mut writer = PathSegWriter::new(f, true);
         let seg = self.clone();
         writer.write(seg)
     }
@@ -675,8 +675,6 @@ pub struct PathSegWriter<'a, W: 'a + Write> {
     mode: Option<PathSegType>,
     /// Wheter to pretty-print or have an optimized output.
     pretty: bool,
-    /// Limit amount of digits after the decimal to print.
-    precision: Option<u8>,
     /// What kind the token was that was last written.
     last_token: TokenWritten,
 }
@@ -685,14 +683,11 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
     /// Creates a new `PathSegWriter`.
     ///
     /// The `pretty` argument decides wether to write in a space-saving or pretty, human-readable way.
-    /// `precision` sets the maximum amount of digits printed after a decimal. `None` means no limit.
-    /// Warning: If you have many small relative segments, the error can add up and distort the path dramatically. 
-    pub fn new(sink: &'a mut W, pretty: bool, precision: Option<u8>) -> PathSegWriter<'a, W> {
+    pub fn new(sink: &'a mut W, pretty: bool) -> PathSegWriter<'a, W> {
         PathSegWriter {
             sink: sink,
             mode: None,
             pretty: pretty,
-            precision: precision,
             last_token: TokenWritten::NotANumber,
         }
     }
@@ -702,21 +697,11 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
         if self.pretty {
             // Always write a space when pretty printing.
             try!(self.sink.write_char(' '));
-            if let Some(precision) = self.precision {
-                let mut filter = DropTrailingZeros::new(&mut self.sink);
-                try!(write!(filter, "{:.*}", precision.into(), num));
-            } else {
-                try!(write!(self.sink, "{}", num));
-            }
+            try!(write!(self.sink, "{}", num));
             return Ok(());
         } else {
             let mut optimized_writer = DropLeadingZero::new(&mut self.sink, self.last_token);
-            if let Some(precision) = self.precision {
-                let mut filter = DropTrailingZeros::new(&mut optimized_writer);
-                try!(write!(filter, "{:.*}", precision.into(), num));
-            } else {
-                try!(write!(optimized_writer, "{}", num));
-            }
+            try!(write!(optimized_writer, "{}", num));
             self.last_token = try!(optimized_writer.finish_and_return_token_written());
         }
         Ok(())
@@ -825,7 +810,6 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
             sink: &mut count,
             mode: self.mode,
             pretty: self.pretty,
-            precision: self.precision,
             last_token: self.last_token,
         };
         let res = psw_copy.write(path_seg);
@@ -845,11 +829,11 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
 ///
 /// let mut str = String::new();
 /// let segs  = [PathSeg::MovetoAbs((1.0,1.0)), PathSeg::LinetoRel((1.0,1.0))];
-/// write_all_pathsegs(&mut str, &segs, false, None).unwrap();
+/// write_all_pathsegs(&mut str, &segs, false).unwrap();
 /// assert_eq!(str, "M1 1l1 1");
 /// ```
-pub fn write_all_pathsegs<'a, W: Write>(sink: &mut W, pathsegs: &'a[PathSeg], pretty: bool, precision: Option<u8>) -> Result<(), fmt::Error> {
-    let mut writer = PathSegWriter::new(sink, pretty, precision);
+pub fn write_all_pathsegs<'a, W: Write>(sink: &mut W, pathsegs: &'a[PathSeg], pretty: bool) -> Result<(), fmt::Error> {
+    let mut writer = PathSegWriter::new(sink, pretty);
     for seg in pathsegs {
         try!(writer.write(seg.clone()));
     }
