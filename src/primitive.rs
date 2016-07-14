@@ -230,10 +230,15 @@ impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
                 path_segs
             }
             Primitive::Lineto(p) => {
-                let path_segs = [
-                    PathSeg::LinetoAbs(p),
-                    PathSeg::LinetoRel(to_rel(self.pos, p))
-                ];
+                let (pos_x, pos_y) = self.pos;
+                let (x, y) = p;
+                let path_segs = if (x - pos_x).abs() <= self.epsilon {
+                    [ PathSeg::LinetoVerticalAbs(y), PathSeg::LinetoVerticalRel(y - pos_y) ]
+                } else if (y - pos_y).abs() <= self.epsilon {
+                    [ PathSeg::LinetoHorizontalAbs(x), PathSeg::LinetoHorizontalRel(x - pos_x) ]
+                } else {
+                    [ PathSeg::LinetoAbs(p), PathSeg::LinetoRel(to_rel(self.pos, p)) ]
+                };
                 self.pos = p;
                 path_segs
             }
