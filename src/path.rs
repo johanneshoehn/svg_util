@@ -843,13 +843,13 @@ pub fn write_all_pathsegs<'a, W: Write>(sink: &mut W, pathsegs: &'a[PathSeg], pr
 /// Converts `PathSeg`s to `Primitive`s.
 pub struct PathSegToPrimitive {
     /// The position we're currently at.
-    pos: (f32, f32),
+    pub pos: (f32, f32),
     /// Where we moved to with the last move.
-    last_move: (f32, f32),
+    pub last_move: (f32, f32),
     /// The position we're going to predict for a cubic smooth `PathSeg`.
-    cubic_smooth: (f32, f32),
+    pub cubic_smooth: (f32, f32),
     /// The position we're going to predict for a quadratic smooth `PathSeg`.
-    quadratic_smooth: (f32, f32),
+    pub quadratic_smooth: (f32, f32),
 }
 
 impl PathSegToPrimitive {
@@ -866,16 +866,12 @@ impl PathSegToPrimitive {
 }
 
 fn to_abs(pos: (f32, f32), rel: (f32, f32)) -> (f32, f32) {
-    let (rel_x, rel_y) = rel;
-    let (pos_x, pos_y) = pos;
-    (pos_x + rel_x, pos_y + rel_y)
+    (pos.0 + rel.0, pos.1 + rel.1)
 }
 
 fn predict(new_pos: (f32, f32), point: (f32, f32)) -> (f32, f32) {
-    let (point_x, point_y) = point;
-    let (pos_x, pos_y) = new_pos;
-    let (diff_x, diff_y) = (pos_x - point_x, pos_y - point_y);
-    (pos_x + diff_x, pos_y + diff_y)
+    let diff = (new_pos.0 - point.0, new_pos.1 - point.1);
+    (new_pos.0 + diff.0, new_pos.1 + diff.1)
 }
 
 impl PathSegToPrimitive {

@@ -172,15 +172,14 @@ impl<'a> IntoIterator for PathReader<'a> {
 
 pub struct PathWriter<'a, W: 'a + fmt::Write> {
     psw: PathSegWriter<'a, W>,
-    /// The position we're currently at.
-    pos: (f32, f32),
-    /// Where we moved to with the last move.
-    last_move: (f32, f32),
+    /// A `PathSegToPrimitive` to track position, predicted smooth bezier points etc.
+    path_seg_to_primitive: PathSegToPrimitive,
     /// How many fractional digits to write max.
     precision: Option<u8>,
     /// The value under which we consider values to be zero.
     epsilon: f32,
 }
+
 
 impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
     pub fn new(sink: &'a mut W, pretty: bool, precision: Option<u8>) -> PathWriter<'a, W> {
@@ -200,8 +199,7 @@ impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
         };
         PathWriter {
             psw: PathSegWriter::new(sink, pretty),
-            pos: (0.0, 0.0),
-            last_move: (0.0, 0.0),
+            path_seg_to_primitive: PathSegToPrimitive::new(),
             precision: precision,
             epsilon: epsilon,
         }
@@ -224,77 +222,60 @@ impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
             None => pair
         }
     }
-}
 
-fn to_rel(pos: (f32, f32), abs: (f32, f32)) -> (f32, f32) {
-    (abs.0 - pos.0, abs.1 - pos.1)
-}
+    fn to_rel(&self, abs: (f32, f32)) -> (f32, f32) {
+        (abs.0 - self.path_seg_to_primitive.pos.0, abs.1 - self.path_seg_to_primitive.pos.1)
+    }
 
-impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
     pub fn write(&mut self, primitive: Primitive) -> Result<(), fmt::Error> {
-        let path_segs = match primitive {
+        // Generate an absolute and a relative `PathSeg` of the `Primitive`.
+        let path_segs : [PathSeg ; 2]= match primitive {
             Primitive::Closepath => {
                 // Current position moves back on closepath.
-                self.pos = self.last_move;
+                self.path_seg_to_primitive.pos = self.path_seg_to_primitive.last_move;
                 let pathseg : PathSeg = PathSeg::Closepath;
                 return self.psw.write(pathseg);
             }
-            // TODO: set `pos` and `last_move` using the rounded values
-            Primitive::Moveto(p) => {
-                let path_segs = [
-                    PathSeg::MovetoAbs(self.round_pair(p)),
-                    PathSeg::MovetoRel(self.round_pair(to_rel(self.pos, p)))
-                ];
-                self.pos = p;
-                self.last_move = p;
-                path_segs
-            }
+            Primitive::Moveto(p) => [
+                PathSeg::MovetoAbs(self.round_pair(p)),
+                PathSeg::MovetoRel(self.round_pair(self.to_rel(p)))
+            ],
             Primitive::Lineto(p) => {
-                let (pos_x, pos_y) = self.pos;
+                let (pos_x, pos_y) = self.path_seg_to_primitive.pos;
                 let (x, y) = p;
-                let path_segs = if (x - pos_x).abs() <= self.epsilon {
+                if (x - pos_x).abs() <= self.epsilon {
                     [ PathSeg::LinetoVerticalAbs(self.round(y)), PathSeg::LinetoVerticalRel(self.round(y - pos_y)) ]
                 } else if (y - pos_y).abs() <= self.epsilon {
                     [ PathSeg::LinetoHorizontalAbs(self.round(x)), PathSeg::LinetoHorizontalRel(self.round(x - pos_x)) ]
                 } else {
-                    [ PathSeg::LinetoAbs(self.round_pair(p)), PathSeg::LinetoRel(self.round_pair(to_rel(self.pos, p))) ]
-                };
-                self.pos = p;
-                path_segs
+                    [ PathSeg::LinetoAbs(self.round_pair(p)), PathSeg::LinetoRel(self.round_pair(self.to_rel(p))) ]
+                }
             }
-            Primitive::CurvetoCubic(p1, p2, p) => {
-                let path_segs = [
-                    PathSeg::CurvetoCubicAbs(self.round_pair(p1), self.round_pair(p2), self.round_pair(p)),
-                    PathSeg::CurvetoCubicRel(self.round_pair(to_rel(self.pos, p1)), self.round_pair(to_rel(self.pos, p2)), self.round_pair(to_rel(self.pos, p)))
-                ];
-                self.pos = p;
-                path_segs
-            }
-            Primitive::CurvetoQuadratic(p1, p) => {
-                let path_segs = [
-                    PathSeg::CurvetoQuadraticAbs(self.round_pair(p1), self.round_pair(p)),
-                    PathSeg::CurvetoQuadraticRel(self.round_pair(to_rel(self.pos, p1)), self.round_pair(to_rel(self.pos, p)))
-                ];
-                self.pos = p;
-                path_segs
-            }
-            Primitive::Arc(r1, r2, rot, f1, f2, p) => {
-                let path_segs = [
-                    PathSeg::ArcAbs(self.round(r1), self.round(r2), self.round(rot), f1, f2, self.round_pair(p)),
-                    PathSeg::ArcAbs(self.round(r1), self.round(r2), self.round(rot), f1, f2, self.round_pair(to_rel(self.pos, p)))
-                ];
-                self.pos = p;
-                path_segs
-            }
+            Primitive::CurvetoCubic(p1, p2, p) => [
+                PathSeg::CurvetoCubicAbs(self.round_pair(p1), self.round_pair(p2), self.round_pair(p)),
+                PathSeg::CurvetoCubicRel(self.round_pair(self.to_rel(p1)), self.round_pair(self.to_rel(p2)), self.round_pair(self.to_rel(p)))
+            ],
+            Primitive::CurvetoQuadratic(p1, p) => [
+                PathSeg::CurvetoQuadraticAbs(self.round_pair(p1), self.round_pair(p)),
+                PathSeg::CurvetoQuadraticRel(self.round_pair(self.to_rel(p1)), self.round_pair(self.to_rel(p)))
+            ],
+            Primitive::Arc(r1, r2, rot, f1, f2, p) => [
+                PathSeg::ArcAbs(self.round(r1), self.round(r2), self.round(rot), f1, f2, self.round_pair(p)),
+                PathSeg::ArcAbs(self.round(r1), self.round(r2), self.round(rot), f1, f2, self.round_pair(self.to_rel(p)))
+            ]
         };
 
-        // Select the shorter path segment.
-        // Prefer writing absolute path segments when both have the same lengh.
-        // Absolute path segments have the advantage that they don't accumulate rounding errors.
+        // Select the shorter `PathSeg`.
+        // We don't accumulate rounding errors from relative `PathSeg`s, because we calculate
+        // the relative positions against what someone parsing has as the current position.
         if self.psw.test_write(path_segs[0]) <= self.psw.test_write(path_segs[1]) {
+            // Update position etc. with rounded values that actually get written.
+            self.path_seg_to_primitive.convert(path_segs[0]);
             // Write absolute path segment.
             self.psw.write(path_segs[0])
         } else {
+            // Update position etc. with rounded values that actually get written.
+            self.path_seg_to_primitive.convert(path_segs[1]);
             // Write relative path segment.
             self.psw.write(path_segs[1])
         }
