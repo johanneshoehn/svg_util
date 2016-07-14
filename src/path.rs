@@ -237,7 +237,7 @@ pub struct PathSegReader<'a> {
     /// The first PathSeg must be a move. If this bool is set a non-move will lead to an error.
     first: bool,
     /// The maximum precision that occured up to now.
-    max_precision: usize,
+    max_precision: u8,
 }
 
 // TODO: Add more info like where in the string the error happened.
@@ -310,7 +310,7 @@ impl<'a> PathSegReader<'a> {
     }
 
     /// Returns the maximum precision encountered so far.
-    pub fn precision(&self) -> usize {
+    pub fn precision(&self) -> u8 {
         self.max_precision
     }
 
@@ -445,7 +445,7 @@ impl<'a> PathSegReader<'a> {
 
     fn get_number(&mut self, nonnegative: bool) -> Result<f32, Error> {
         let mut length = 0;
-        let mut precision : usize = 0;
+        let mut precision : u8 = 0;
 
         if !nonnegative {
             match self.src.get(length) {
@@ -511,14 +511,14 @@ impl<'a> PathSegReader<'a> {
                     // Digits need to follow after an `e`/`E`.
                     return Err(Error::ExpectedNumber);
                 }
-                // Parse the number after `e` into a `usize` and subtract it from the precision.
+                // Parse the number after `e` into a `u8` and subtract it from the precision.
                 // E.g. 0.1e1 == 1 with precision 0.
                 let num = &self.src[length .. length_after_e];
                 let numstring = unsafe { from_utf8_unchecked(num) };
-                match usize::from_str(numstring) {
+                match u8::from_str(numstring) {
                     Ok(num) => {
                         if negative {
-                            precision += num;
+                            precision = precision.saturating_add(num);
                         } else {
                             precision = precision.saturating_sub(num);
                         }
@@ -601,7 +601,7 @@ impl<'a> PathSegReader<'a> {
 ///
 /// Returns all `PathSeg`s that were parsed until an error occurred or the string was empty,
 /// the error if one occured and the maximum precision.
-pub fn parse_all_pathsegs<'a, T, B: ?Sized>(src: &'a B) -> (Vec<PathSeg>, Option<Error>, usize)
+pub fn parse_all_pathsegs<'a, T, B: ?Sized>(src: &'a B) -> (Vec<PathSeg>, Option<Error>, u8)
 where T: Copy + FromStr, B: AsRef<[u8]> {
     let mut parser = PathSegReader::new(src);
     let mut array = Vec::new();
@@ -676,7 +676,7 @@ pub struct PathSegWriter<'a, W: 'a + Write> {
     /// Wheter to pretty-print or have an optimized output.
     pretty: bool,
     /// Limit amount of digits after the decimal to print.
-    precision: Option<usize>,
+    precision: Option<u8>,
     /// What kind the token was that was last written.
     last_token: TokenWritten,
 }
@@ -687,7 +687,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
     /// The `pretty` argument decides wether to write in a space-saving or pretty, human-readable way.
     /// `precision` sets the maximum amount of digits printed after a decimal. `None` means no limit.
     /// Warning: If you have many small relative segments, the error can add up and distort the path dramatically. 
-    pub fn new(sink: &'a mut W, pretty: bool, precision: Option<usize>) -> PathSegWriter<'a, W> {
+    pub fn new(sink: &'a mut W, pretty: bool, precision: Option<u8>) -> PathSegWriter<'a, W> {
         PathSegWriter {
             sink: sink,
             mode: None,
@@ -704,7 +704,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
             try!(self.sink.write_char(' '));
             if let Some(precision) = self.precision {
                 let mut filter = DropTrailingZeros::new(&mut self.sink);
-                try!(write!(filter, "{:.*}", precision, num));
+                try!(write!(filter, "{:.*}", precision.into(), num));
             } else {
                 try!(write!(self.sink, "{}", num));
             }
@@ -713,7 +713,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
             let mut optimized_writer = DropLeadingZero::new(&mut self.sink, self.last_token);
             if let Some(precision) = self.precision {
                 let mut filter = DropTrailingZeros::new(&mut optimized_writer);
-                try!(write!(filter, "{:.*}", precision, num));
+                try!(write!(filter, "{:.*}", precision.into(), num));
             } else {
                 try!(write!(optimized_writer, "{}", num));
             }
@@ -848,7 +848,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
 /// write_all_pathsegs(&mut str, &segs, false, None).unwrap();
 /// assert_eq!(str, "M1 1l1 1");
 /// ```
-pub fn write_all_pathsegs<'a, W: Write>(sink: &mut W, pathsegs: &'a[PathSeg], pretty: bool, precision: Option<usize>) -> Result<(), fmt::Error> {
+pub fn write_all_pathsegs<'a, W: Write>(sink: &mut W, pathsegs: &'a[PathSeg], pretty: bool, precision: Option<u8>) -> Result<(), fmt::Error> {
     let mut writer = PathSegWriter::new(sink, pretty, precision);
     for seg in pathsegs {
         try!(writer.write(seg.clone()));

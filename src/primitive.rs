@@ -5,6 +5,7 @@
 use path::{PathSeg, PathSegReader, PathSegToPrimitive, Error, PathSegWriter};
 use std::fmt;
 use std::fmt::Display;
+use std::f32::{EPSILON, MIN_10_EXP};
 
 /// A geometric primitive.
 ///
@@ -99,7 +100,7 @@ impl<'a> PathReader<'a> {
     }
 
     /// Returns the maximum precision encountered so far.
-    pub fn precision(&self) -> usize {
+    pub fn precision(&self) -> u8 {
         self.path_seg_reader.precision()
     }
 }
@@ -108,7 +109,7 @@ impl<'a> PathReader<'a> {
 ///
 /// Returns all path segments as `Primitive`s that were parsed until an error occurred or the string was empty,
 /// the error if one occured and the maximum precision.
-pub fn parse_path<'a, B: ?Sized>(src: &'a B) -> (Vec<Primitive>, Option<Error>, usize)
+pub fn parse_path<'a, B: ?Sized>(src: &'a B) -> (Vec<Primitive>, Option<Error>, u8)
 where B: AsRef<[u8]> {
     let mut parser = PathReader::new(src);
     let mut array = Vec::new();
@@ -175,14 +176,31 @@ pub struct PathWriter<'a, W: 'a + fmt::Write> {
     pos: (f32, f32),
     /// Where we moved to with the last move.
     last_move: (f32, f32),
+    /// The value under which we consider values to be zero.
+    epsilon: f32,
 }
 
 impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
-    pub fn new(sink: &'a mut W, pretty: bool, precision: Option<usize>) -> PathWriter<'a, W> {
+    pub fn new(sink: &'a mut W, pretty: bool, precision: Option<u8>) -> PathWriter<'a, W> {
+        let epsilon = match precision {
+            Some(p) => {
+                let exponent : i32 = -1 * i32::from(p);
+                if exponent >= MIN_10_EXP {
+                    // Example: precision 1
+                    // 0.06 > 0.05 (because it will get rounded to 0.1) 
+                    // 0.04 < 0.05 (because it will get rounded to 0.0)
+                    10.0f32.powi(exponent) / 2
+                } else {
+                    EPSILON
+                }
+            }
+            None => EPSILON,
+        };
         PathWriter {
             psw: PathSegWriter::new(sink, pretty, precision),
             pos: (0.0, 0.0),
             last_move: (0.0, 0.0),
+            epsilon: epsilon,
         }
     }
 }
@@ -270,7 +288,7 @@ impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
 /// write_path(&mut str, &segs, false, None).unwrap();
 /// assert_eq!(str, "M1 1 2 2");
 /// ```
-pub fn write_path<'a, 'b, W>(sink: &mut W, primitives: &'b [Primitive], pretty: bool, precision: Option<usize>) ->  Result<(), fmt::Error>
+pub fn write_path<'a, 'b, W>(sink: &mut W, primitives: &'b [Primitive], pretty: bool, precision: Option<u8>) ->  Result<(), fmt::Error>
 where W: 'a + fmt::Write {
     let mut pw = PathWriter::new(sink, pretty, precision);
     for primitive in primitives {
