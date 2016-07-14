@@ -6,8 +6,6 @@
 //! This is restricted to the non-xml parts of SVG, as you may want to represent the XML/DOM tree
 //! differently depending on the use case.
 
-extern crate num_traits;
-
 pub mod primitive;
 pub mod path;
 mod util;

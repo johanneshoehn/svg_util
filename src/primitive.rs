@@ -189,7 +189,7 @@ impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
                     // Example: precision 1
                     // 0.06 > 0.05 (because it will get rounded to 0.1) 
                     // 0.04 < 0.05 (because it will get rounded to 0.0)
-                    10.0f32.powi(exponent) / 2
+                    10.0f32.powi(exponent) / 2.0
                 } else {
                     EPSILON
                 }
