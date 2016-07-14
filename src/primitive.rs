@@ -5,65 +5,58 @@
 use path::{PathSeg, PathSegReader, PathSegToPrimitive, Error, PathSegWriter};
 use std::fmt;
 use std::fmt::Display;
-use std::str::FromStr;
-use std::ops::{Add, Sub};
-
-use num_traits::Zero;
 
 /// A geometric primitive.
 ///
 /// The geometric primitives that can represent all geometries supported by SVG.
 /// Those are essentially absolute version of `PathSeg`s, without all the special cases like horizontal lines.
-#[derive(Eq, PartialEq, Copy, Clone)]
-pub enum Primitive<T> {
+#[derive(PartialEq, Copy, Clone)]
+pub enum Primitive {
     Closepath,
-    Moveto((T, T)),
-    Lineto((T, T)),
-    CurvetoCubic((T, T), (T, T), (T, T)),
-    CurvetoQuadratic((T, T), (T, T)),
-    Arc(T, T, T, bool, bool, (T,T)),
+    Moveto((f32, f32)),
+    Lineto((f32, f32)),
+    CurvetoCubic((f32, f32), (f32, f32), (f32, f32)),
+    CurvetoQuadratic((f32, f32), (f32, f32)),
+    Arc(f32, f32, f32, bool, bool, (f32, f32)),
 }
 
-impl<T: Display + Copy> fmt::Debug for Primitive<T> {
+impl fmt::Debug for Primitive {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let primitive = self.clone();
-        let seg : PathSeg<T> = primitive.into();
+        let seg : PathSeg = primitive.into();
         seg.fmt(f)
     }
 }
 
 /// Parse a [`<line>`](http://www.w3.org/TR/SVG11/shapes.html#LineElement) into an array of primitives.
-pub fn parse_line<T>(x1: T, y1: T, x2: T, y2: T) -> [Primitive<T>; 2] {
+pub fn parse_line(x1: f32, y1: f32, x2: f32, y2: f32) -> [Primitive; 2] {
     [Primitive::Moveto((x1, y1)), Primitive::Lineto((x2, y2))]
 }
 
 /// Parse a [`<circle>`](http://www.w3.org/TR/SVG11/shapes.html#CircleElement) into an array of primitives.
 ///
 /// Note that you need to check that r is positive.
-pub fn parse_circle<T>(cx: T, cy: T, r: T) -> [Primitive<T>; 4]
-where T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Zero {
+pub fn parse_circle(cx: f32, cy: f32, r: f32) -> [Primitive; 4] {
     [Primitive::Moveto((cx+r, cy)),
-     Primitive::Arc(r, r, Zero::zero(), false, true, (cx-r, cy)),
-     Primitive::Arc(r, r, Zero::zero(), false, true, (cx+r, cy)),
+     Primitive::Arc(r, r, 0.0, false, true, (cx-r, cy)),
+     Primitive::Arc(r, r, 0.0, false, true, (cx+r, cy)),
      Primitive::Closepath]
 }
 
 /// Parse an [`<ellipse>`](http://www.w3.org/TR/SVG11/shapes.html#EllipseElement) into an array of primitives.
 ///
 /// Note that you need to check that `rx` and `ry` are positive.
-pub fn parse_ellipse<T>(cx: T, cy: T, rx: T, ry: T) -> [Primitive<T>; 4]
-where T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Zero {
+pub fn parse_ellipse(cx: f32, cy: f32, rx: f32, ry: f32) -> [Primitive; 4] {
     [Primitive::Moveto((cx+rx, cy)),
-     Primitive::Arc(rx, ry, Zero::zero(), false, true, (cx-rx, cy)),
-     Primitive::Arc(rx, ry, Zero::zero(), false, true, (cx+rx, cy)),
+     Primitive::Arc(rx, ry, 0.0, false, true, (cx-rx, cy)),
+     Primitive::Arc(rx, ry, 0.0, false, true, (cx+rx, cy)),
      Primitive::Closepath]
 }
 
 /// Parse a [`<rect>`](http://www.w3.org/TR/SVG11/shapes.html#RectElement) without corners into an array of primitives.
 ///
 /// Note that `width` and `height` need to be larger than zero according to the spec.
-pub fn parse_simple_rect<T>(x: T, y: T, width: T, height: T) -> [Primitive<T>; 6]
-where T: Copy + Add<T, Output=T> {
+pub fn parse_simple_rect(x: f32, y: f32, width: f32, height: f32) -> [Primitive; 6]{
     [Primitive::Moveto((x, y)),
      Primitive::Lineto((x+width, y)),
      Primitive::Lineto((x+width, y+height)),
@@ -73,14 +66,14 @@ where T: Copy + Add<T, Output=T> {
 }
 
 /// Parses `Primitive`s from a path string.
-pub struct PathReader<'a, T> {
-    path_seg_reader: PathSegReader<'a, T>,
-    path_seg_to_primitive: PathSegToPrimitive<T>,
+pub struct PathReader<'a> {
+    path_seg_reader: PathSegReader<'a>,
+    path_seg_to_primitive: PathSegToPrimitive,
 }
 
-impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Zero> PathReader<'a, T> {
+impl<'a> PathReader<'a> {
     /// Creates a new `PathReader` using for instance a `&str` or a `&[u8]`.
-    pub fn new<B: AsRef<[u8]> + ?Sized>(src: &'a B) -> PathReader<'a, T> {
+    pub fn new<B: AsRef<[u8]> + ?Sized>(src: &'a B) -> PathReader<'a> {
         PathReader {
             path_seg_reader: PathSegReader::new(src),
             path_seg_to_primitive: PathSegToPrimitive::new(),
@@ -93,7 +86,7 @@ impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Zero> PathRea
     /// anymore (empty or only whitespace).
     /// Otherwise it returns either the `Primitive` or an `Error` if one
     /// occured.
-    pub fn pop_one_pathseg(&mut self) -> Option<Result<Primitive<T>, Error>> {
+    pub fn pop_one_pathseg(&mut self) -> Option<Result<Primitive, Error>> {
         match self.path_seg_reader.pop_one_pathseg() {
             None => None,
             Some(result) => {
@@ -115,8 +108,8 @@ impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Zero> PathRea
 ///
 /// Returns all path segments as `Primitive`s that were parsed until an error occurred or the string was empty,
 /// the error if one occured and the maximum precision.
-pub fn parse_path<'a, T, B: ?Sized>(src: &'a B) -> (Vec<Primitive<T>>, Option<Error>, usize)
-where T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Zero, B: AsRef<[u8]> {
+pub fn parse_path<'a, B: ?Sized>(src: &'a B) -> (Vec<Primitive>, Option<Error>, usize)
+where B: AsRef<[u8]> {
     let mut parser = PathReader::new(src);
     let mut array = Vec::new();
     loop {
@@ -134,15 +127,15 @@ where T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Zero, B: AsRef<[
 }
 
 /// The `Iterator` for `PathReader`.
-pub struct PathPrimitives<'a, T> {
-    reader: PathReader<'a, T>,
+pub struct PathPrimitives<'a> {
+    reader: PathReader<'a>,
     done: bool,
 }
 
-impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Zero> Iterator for PathPrimitives<'a, T> {
-    type Item = Result<Primitive<T>, Error>;
+impl<'a> Iterator for PathPrimitives<'a> {
+    type Item = Result<Primitive, Error>;
 
-    fn next(&mut self) -> Option<Result<Primitive<T>, Error>> {
+    fn next(&mut self) -> Option<Result<Primitive, Error>> {
         if self.done {
             return None;
         }
@@ -158,8 +151,8 @@ impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Zero> Iterato
     }
 }
 
-impl<'a, T> From<PathReader<'a, T>> for PathPrimitives<'a, T> {
-    fn from(reader: PathReader<'a, T>) -> PathPrimitives<'a, T> {
+impl<'a> From<PathReader<'a>> for PathPrimitives<'a> {
+    fn from(reader: PathReader<'a>) -> PathPrimitives<'a> {
         PathPrimitives {
             reader: reader,
             done: false,
@@ -167,46 +160,46 @@ impl<'a, T> From<PathReader<'a, T>> for PathPrimitives<'a, T> {
     }
 }
 
-impl<'a, T: Copy + FromStr + Add<T, Output=T> + Sub<T, Output=T> + Zero> IntoIterator for PathReader<'a, T> {
-    type Item = Result<Primitive<T>, Error>;
-    type IntoIter = PathPrimitives<'a, T>;
+impl<'a> IntoIterator for PathReader<'a> {
+    type Item = Result<Primitive, Error>;
+    type IntoIter = PathPrimitives<'a>;
 
-    fn into_iter(self) -> PathPrimitives<'a, T> {
+    fn into_iter(self) -> PathPrimitives<'a> {
         self.into()
     }
 }
 
-pub struct PathWriter<'a, W: 'a + fmt::Write, T> {
+pub struct PathWriter<'a, W: 'a + fmt::Write> {
     psw: PathSegWriter<'a, W>,
     /// The position we're currently at.
-    pos: (T,T),
+    pos: (f32, f32),
     /// Where we moved to with the last move.
-    last_move: (T,T),
+    last_move: (f32, f32),
 }
 
-impl <'a, W: 'a + fmt::Write, T: Zero> PathWriter<'a, W, T> {
-    pub fn new(sink: &'a mut W, pretty: bool, precision: Option<usize>) -> PathWriter<'a, W, T> {
+impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
+    pub fn new(sink: &'a mut W, pretty: bool, precision: Option<usize>) -> PathWriter<'a, W> {
         PathWriter {
             psw: PathSegWriter::new(sink, pretty, precision),
-            pos: (Zero::zero(), Zero::zero()),
-            last_move: (Zero::zero(), Zero::zero()),
+            pos: (0.0, 0.0),
+            last_move: (0.0, 0.0),
         }
     }
 }
 
-fn to_rel<T: Sub<T, Output=T>>(pos: (T,T), abs: (T, T)) -> (T, T) {
+fn to_rel(pos: (f32, f32), abs: (f32, f32)) -> (f32, f32) {
     let (abs_x, abs_y) = abs;
     let (pos_x, pos_y) = pos;
     (abs_x - pos_x, abs_y - pos_y)
 }
 
-impl <'a, W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Display> PathWriter<'a, W, T> {
-    pub fn write(&mut self, primitive: Primitive<T>) -> Result<(), fmt::Error> {
+impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
+    pub fn write(&mut self, primitive: Primitive) -> Result<(), fmt::Error> {
         let path_segs = match primitive {
             Primitive::Closepath => {
                 // Current position moves back on closepath.
                 self.pos = self.last_move;
-                let pathseg : PathSeg<T> = PathSeg::Closepath;
+                let pathseg : PathSeg = PathSeg::Closepath;
                 return self.psw.write(pathseg);
             }
             Primitive::Moveto(p) => {
@@ -273,12 +266,12 @@ impl <'a, W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Di
 /// use svg_util::primitive::{Primitive, write_path};
 ///
 /// let mut str = String::new();
-/// let segs : [Primitive<i8>; 2] = [Primitive::Moveto((1,1)), Primitive::Lineto((2,2))];
+/// let segs = [Primitive::Moveto((1.0,1.0)), Primitive::Lineto((2.0,2.0))];
 /// write_path(&mut str, &segs, false, None).unwrap();
 /// assert_eq!(str, "M1 1 2 2");
 /// ```
-pub fn write_path<'a, 'b, W, T>(sink: &mut W, primitives: &'b [Primitive<T>], pretty: bool, precision: Option<usize>) ->  Result<(), fmt::Error>
-where W: 'a + fmt::Write, T: Copy + Add<T, Output=T> + Sub<T, Output=T> + Display + Zero {
+pub fn write_path<'a, 'b, W>(sink: &mut W, primitives: &'b [Primitive], pretty: bool, precision: Option<usize>) ->  Result<(), fmt::Error>
+where W: 'a + fmt::Write {
     let mut pw = PathWriter::new(sink, pretty, precision);
     for primitive in primitives {
         try!(pw.write(primitive.clone()));

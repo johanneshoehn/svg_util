@@ -12,15 +12,11 @@ use primitive::Primitive;
 use util::{TokenWritten, DropLeadingZero, DropTrailingZeros, Count};
 
 use std::fmt;
-use std::fmt::{Write, Display};
+use std::fmt::Write;
 use std::iter::Iterator;
-use std::marker::PhantomData;
 use std::str::from_utf8_unchecked;
 use std::str::FromStr;
-use std::ops::{Add, Sub};
 use std::convert::From;
-
-use num_traits::Zero;
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 #[repr(u8)]
@@ -114,50 +110,50 @@ fn path_seg_type_test() {
 /// E.g.: `l 1,1 1,1` and `l 1,1 l 1,1` are both parsed as two `PathSeg`s.
 ///
 /// The different types of segments are explained in detail in the [SVG Specification](http://www.w3.org/TR/SVG11/paths.html#PathData)
-#[derive(Eq, PartialEq, Copy, Clone)]
-pub enum PathSeg<T> {
+#[derive(PartialEq, Copy, Clone)]
+pub enum PathSeg {
     /// Closes the path and moves back to where the last moveto started the subpath.
     Closepath,
     /// Starts a new subpath at an absolute position.
-    MovetoAbs((T, T)),
+    MovetoAbs((f32, f32)),
     /// Starts a new subpath at a position relative to the last current position.
-    MovetoRel((T, T)), 
+    MovetoRel((f32, f32)), 
     /// Draws a line from the current position to an absolute position.
-    LinetoAbs((T, T)),
+    LinetoAbs((f32, f32)),
     /// Draws a line from the current position to a position relative to the current position.
-    LinetoRel((T, T)),
+    LinetoRel((f32, f32)),
     /// Draws a cubic Bézier curve with absolute positions for first control point, second control point and end position.
-    CurvetoCubicAbs((T, T), (T, T), (T, T)),
+    CurvetoCubicAbs((f32, f32), (f32, f32), (f32, f32)),
     /// Draws a cubic Bézier curve with relative positions for first control point, second control point and end position.
-    CurvetoCubicRel((T, T), (T, T), (T, T)),
+    CurvetoCubicRel((f32, f32), (f32, f32), (f32, f32)),
     /// Draws a quadratic Bézier curve with absolute positions for the control point and the end position.
-    CurvetoQuadraticAbs((T, T), (T, T)),
+    CurvetoQuadraticAbs((f32, f32), (f32, f32)),
     /// Draws a quadratic Bézier curve with positions relative to the start position.
-    CurvetoQuadraticRel((T, T), (T, T)),
+    CurvetoQuadraticRel((f32, f32), (f32, f32)),
     /// Draws an arc with radius in x direction, radius in y direction, rotation of the axis, large arc flag, sweep flag and the absolute end position.
-    ArcAbs(T, T, T, bool, bool, (T, T)),
+    ArcAbs(f32, f32, f32, bool, bool, (f32, f32)),
     /// Draws an arc with radius in x direction, radius in y direction, rotation of the axis, large arc flag, sweep flag and the end position relative current to the current position.
-    ArcRel(T, T, T, bool, bool, (T, T)),
+    ArcRel(f32, f32, f32, bool, bool, (f32, f32)),
     /// Draws a horizontal line to an absolute x position.
-    LinetoHorizontalAbs(T),
+    LinetoHorizontalAbs(f32),
     /// Draws a horizontal line with a certain length.
-    LinetoHorizontalRel(T),
+    LinetoHorizontalRel(f32),
     /// Draws a vertical line to an absolute y position.
-    LinetoVerticalAbs(T),
+    LinetoVerticalAbs(f32),
     /// Draws a vertical line with a certain length.
-    LinetoVerticalRel(T),
+    LinetoVerticalRel(f32),
     /// Draws a cubic Bézier curve with a calculated first control point and absolute positions for the second control point and end position.
-    CurvetoCubicSmoothAbs((T, T), (T, T)),
+    CurvetoCubicSmoothAbs((f32, f32), (f32, f32)),
     /// Draws a cubic Bézier curve with a calculated first control point and relative positions for the second control point and end position.
-    CurvetoCubicSmoothRel((T, T), (T, T)),
+    CurvetoCubicSmoothRel((f32, f32), (f32, f32)),
     /// Draws a quadratic Bézier curve with a calculated control point and the absolute end position.
-    CurvetoQuadraticSmoothAbs((T, T)),
+    CurvetoQuadraticSmoothAbs((f32, f32)),
     /// Draws a quadratic Bézier curve with a calculated control point and the relative end position.
-    CurvetoQuadraticSmoothRel((T, T)),
+    CurvetoQuadraticSmoothRel((f32, f32)),
 }
 
-impl<T> From<Primitive<T>> for PathSeg<T> {
-    fn from(primitive: Primitive<T>) -> PathSeg<T> {
+impl From<Primitive> for PathSeg {
+    fn from(primitive: Primitive) -> PathSeg {
         match primitive {
             Primitive::Closepath => PathSeg::Closepath,
             Primitive::Moveto(p) => PathSeg::MovetoAbs(p),
@@ -170,7 +166,7 @@ impl<T> From<Primitive<T>> for PathSeg<T> {
     }
 }
 
-impl<T> PathSeg<T> {
+impl PathSeg {
     fn path_seg_type(self) -> PathSegType {
         match self {
             PathSeg::Closepath => PathSegType::ClosepathRel,
@@ -196,7 +192,7 @@ impl<T> PathSeg<T> {
     }
 }
 
-impl<T: Display + Copy> fmt::Debug for PathSeg<T> {
+impl fmt::Debug for PathSeg {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         let mut writer = PathSegWriter::new(f, true, None);
         let seg = self.clone();
@@ -221,7 +217,7 @@ impl<T: Display + Copy> fmt::Debug for PathSeg<T> {
 /// ```
 /// use svg_util::path::PathSegReader;
 ///
-/// let mut parser : PathSegReader<'static, f64> = PathSegReader::new("M 0 0 h 1 v 1 h -1 z");
+/// let mut parser = PathSegReader::new("M 0 0 h 1 v 1 h -1 z");
 /// 
 /// for token in parser {
 ///     match token {
@@ -231,7 +227,7 @@ impl<T: Display + Copy> fmt::Debug for PathSeg<T> {
 /// }
 /// ```
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
-pub struct PathSegReader<'a, T> {
+pub struct PathSegReader<'a> {
     /// The rest of the string to be parsed.
     src: &'a [u8],
     /// The type of the last command that was parsed.
@@ -240,8 +236,6 @@ pub struct PathSegReader<'a, T> {
     mode: Option<PathSegType>,
     /// The first PathSeg must be a move. If this bool is set a non-move will lead to an error.
     first: bool,
-    /// Needed to implement the Iterator.
-    phantom: PhantomData<T>,
     /// The maximum precision that occured up to now.
     max_precision: usize,
 }
@@ -267,9 +261,9 @@ pub enum Error {
 }
 
 // FIXME: maybe an own error type makes more sense?
-impl<T: FromStr + Copy> FromStr for PathSeg<T> {
+impl FromStr for PathSeg {
     type Err = Error;
-    fn from_str(s: &str) -> Result<PathSeg<T>, Error> {
+    fn from_str(s: &str) -> Result<PathSeg, Error> {
         let mut reader = PathSegReader::new_arbitrary(s);
         match reader.pop_one_pathseg() {
             Some(result) => result,
@@ -279,25 +273,23 @@ impl<T: FromStr + Copy> FromStr for PathSeg<T> {
     }
 }
 
-impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
+impl<'a> PathSegReader<'a> {
     /// Creates a new `PathSegReader` using for instance a `&str` or a `&[u8]`.
-    pub fn new<B: AsRef<[u8]> + ?Sized>(src: &'a B) -> PathSegReader<'a, T> {
+    pub fn new<B: AsRef<[u8]> + ?Sized>(src: &'a B) -> PathSegReader<'a> {
         PathSegReader {
             src: src.as_ref(),
             mode: None,
             first: true,
-            phantom: PhantomData,
             max_precision: 0,
         }
     }
     // In contrast to the reader created by `new` this allows parsing arbitrary
     // `PathSeg` sequences, that don't have to start with move `PathSeg`s.
-    fn new_arbitrary(src: &'a str) -> PathSegReader<'a, T> {
+    fn new_arbitrary(src: &'a str) -> PathSegReader<'a> {
         PathSegReader {
             src: src.as_ref(),
             mode: None,
             first: false,
-            phantom: PhantomData,
             max_precision: 0,
         }
     }
@@ -308,7 +300,7 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
     /// anymore (empty or only whitespace).
     /// Otherwise it returns either the `PathSeg` or an `Error` if one
     /// occured.
-    pub fn pop_one_pathseg(&mut self) -> Option<Result<PathSeg<T>, Error>> {
+    pub fn pop_one_pathseg(&mut self) -> Option<Result<PathSeg, Error>> {
         self.remove_leading_whitespace();
         if self.src.is_empty() {
             None
@@ -324,7 +316,7 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
 
     // Pop one `PathSeg` with the precondition that there are
     // `PathSegs` left.
-    fn pop_empty(&mut self) -> Result<PathSeg<T>, Error> {
+    fn pop_empty(&mut self) -> Result<PathSeg, Error> {
 
         // Look ahead if the next char changes the type of the `PathSeg`
         let first = match self.src.first() {
@@ -451,7 +443,7 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
         }
     }
 
-    fn get_number(&mut self, nonnegative: bool) -> Result<T, Error> {
+    fn get_number(&mut self, nonnegative: bool) -> Result<f32, Error> {
         let mut length = 0;
         let mut precision : usize = 0;
 
@@ -547,27 +539,27 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
 
         // Safe because we just matched only numbers, '+', '-', '.', 'e' and 'E's.
         let numstring = unsafe { from_utf8_unchecked(num) };
-        match T::from_str(numstring) {
+        match f32::from_str(numstring) {
             Ok(num) => Ok(num),
             _ => Err(Error::NumberParseError),
         }
     }
 
-    fn get_coordinate_pair(&mut self) -> Result<(T, T), Error> {
+    fn get_coordinate_pair(&mut self) -> Result<(f32, f32), Error> {
         let x = try!(self.get_number(false));
         self.remove_leading_comma_whitespace();
         let y = try!(self.get_number(false));
         Ok((x, y))
     }
 
-    fn get_two_coordinate_pairs(&mut self) -> Result<((T, T), (T, T)), Error> {
+    fn get_two_coordinate_pairs(&mut self) -> Result<((f32, f32), (f32, f32)), Error> {
         let p1 = try!(self.get_coordinate_pair());
         self.remove_leading_comma_whitespace();
         let p2 = try!(self.get_coordinate_pair());
         Ok((p1, p2))
     }
 
-    fn get_three_coordinate_pairs(&mut self) -> Result<((T, T), (T, T), (T, T)), Error> {
+    fn get_three_coordinate_pairs(&mut self) -> Result<((f32, f32), (f32, f32), (f32, f32)), Error> {
         let p1 = try!(self.get_coordinate_pair());
         self.remove_leading_comma_whitespace();
         let p2 = try!(self.get_coordinate_pair());
@@ -576,7 +568,7 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
         Ok((p1, p2, p3))
     }
 
-    fn get_arc_argument(&mut self) -> Result<(T, T, T, bool, bool, (T, T)), Error> {
+    fn get_arc_argument(&mut self) -> Result<(f32, f32, f32, bool, bool, (f32, f32)), Error> {
         let (r1, r2) = try!(self.get_coordinate_pair());
         self.remove_leading_comma_whitespace();
         let rotation = try!(self.get_number(true));
@@ -609,7 +601,7 @@ impl<'a, T: Copy + FromStr> PathSegReader<'a, T> {
 ///
 /// Returns all `PathSeg`s that were parsed until an error occurred or the string was empty,
 /// the error if one occured and the maximum precision.
-pub fn parse_all_pathsegs<'a, T, B: ?Sized>(src: &'a B) -> (Vec<PathSeg<T>>, Option<Error>, usize)
+pub fn parse_all_pathsegs<'a, T, B: ?Sized>(src: &'a B) -> (Vec<PathSeg>, Option<Error>, usize)
 where T: Copy + FromStr, B: AsRef<[u8]> {
     let mut parser = PathSegReader::new(src);
     let mut array = Vec::new();
@@ -628,15 +620,15 @@ where T: Copy + FromStr, B: AsRef<[u8]> {
 }
 
 /// The `Iterator` for `PathSegReader`.
-pub struct Segs<'a, T> {
-    reader: PathSegReader<'a, T>,
+pub struct Segs<'a> {
+    reader: PathSegReader<'a>,
     done: bool,
 }
 
-impl<'a, T: Copy + FromStr> Iterator for Segs<'a, T> {
-    type Item = Result<PathSeg<T>, Error>;
+impl<'a> Iterator for Segs<'a> {
+    type Item = Result<PathSeg, Error>;
 
-    fn next(&mut self) -> Option<Result<PathSeg<T>, Error>> {
+    fn next(&mut self) -> Option<Result<PathSeg, Error>> {
         if self.done {
             return None;
         }
@@ -652,8 +644,8 @@ impl<'a, T: Copy + FromStr> Iterator for Segs<'a, T> {
     }
 }
 
-impl<'a, T> From<PathSegReader<'a, T>> for Segs<'a, T> {
-    fn from(reader: PathSegReader<'a, T>) -> Segs<'a, T> {
+impl<'a> From<PathSegReader<'a>> for Segs<'a> {
+    fn from(reader: PathSegReader<'a>) -> Segs<'a> {
         Segs {
             reader: reader,
             done: false,
@@ -661,11 +653,11 @@ impl<'a, T> From<PathSegReader<'a, T>> for Segs<'a, T> {
     }
 }
 
-impl<'a, T: Copy + FromStr> IntoIterator for PathSegReader<'a, T> {
-    type Item = Result<PathSeg<T>, Error>;
-    type IntoIter = Segs<'a, T>;
+impl<'a> IntoIterator for PathSegReader<'a> {
+    type Item = Result<PathSeg, Error>;
+    type IntoIter = Segs<'a>;
 
-    fn into_iter(self) -> Segs<'a, T> {
+    fn into_iter(self) -> Segs<'a> {
         self.into()
     }
 }
@@ -706,7 +698,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
     }
     
     /// Write one number
-    fn write_num<T: Display>(&mut self, num: T) -> Result<(), fmt::Error> {
+    fn write_num(&mut self, num: f32) -> Result<(), fmt::Error> {
         if self.pretty {
             // Always write a space when pretty printing.
             try!(self.sink.write_char(' '));
@@ -731,7 +723,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
     }
     
     /// Write a x, y pair of numbers.
-    fn write_pair<T: Display>(&mut self, pair: (T,T)) -> Result<(), fmt::Error> {
+    fn write_pair(&mut self, pair: (f32, f32)) -> Result<(), fmt::Error> {
         let (x,y) = pair;
         try!(self.write_num(x));
         self.write_num(y)
@@ -748,7 +740,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
     }
 
     /// Write a `PathSeg`.
-    pub fn write<T: Display + Copy>(&mut self, path_seg: PathSeg<T>) -> Result<(), fmt::Error> {
+    pub fn write(&mut self, path_seg: PathSeg) -> Result<(), fmt::Error> {
         let old_mode = self.mode;
         let path_seg_type = path_seg.path_seg_type();
         self.mode = Some(path_seg_type);
@@ -827,7 +819,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
     }
 
     /// Test how much bytes writing a `PathSeg` would emit, without changing any state.
-    pub fn test_write<T: Display + Copy>(&self, path_seg: PathSeg<T>) -> usize {
+    pub fn test_write(&self, path_seg: PathSeg) -> usize {
         let mut count = Count { len: 0 };
         let mut psw_copy = PathSegWriter {
             sink: &mut count,
@@ -852,11 +844,11 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
 /// use svg_util::path::{PathSeg, write_all_pathsegs};
 ///
 /// let mut str = String::new();
-/// let segs : [PathSeg<i8>; 2] = [PathSeg::MovetoAbs((1,1)), PathSeg::LinetoRel((1,1))];
+/// let segs  = [PathSeg::MovetoAbs((1.0,1.0)), PathSeg::LinetoRel((1.0,1.0))];
 /// write_all_pathsegs(&mut str, &segs, false, None).unwrap();
 /// assert_eq!(str, "M1 1l1 1");
 /// ```
-pub fn write_all_pathsegs<'a, W: Write, T: Display + Copy>(sink: &mut W, pathsegs: &'a[PathSeg<T>], pretty: bool, precision: Option<usize>) -> Result<(), fmt::Error> {
+pub fn write_all_pathsegs<'a, W: Write>(sink: &mut W, pathsegs: &'a[PathSeg], pretty: bool, precision: Option<usize>) -> Result<(), fmt::Error> {
     let mut writer = PathSegWriter::new(sink, pretty, precision);
     for seg in pathsegs {
         try!(writer.write(seg.clone()));
@@ -865,46 +857,46 @@ pub fn write_all_pathsegs<'a, W: Write, T: Display + Copy>(sink: &mut W, pathseg
 }
 
 /// Converts `PathSeg`s to `Primitive`s.
-pub struct PathSegToPrimitive<T> {
+pub struct PathSegToPrimitive {
     /// The position we're currently at.
-    pos: (T, T),
+    pos: (f32, f32),
     /// Where we moved to with the last move.
-    last_move: (T, T),
+    last_move: (f32, f32),
     /// The position we're going to predict for a cubic smooth `PathSeg`.
-    cubic_smooth: (T, T),
+    cubic_smooth: (f32, f32),
     /// The position we're going to predict for a quadratic smooth `PathSeg`.
-    quadratic_smooth: (T, T),
+    quadratic_smooth: (f32, f32),
 }
 
-impl <T: Zero> PathSegToPrimitive<T> {
+impl PathSegToPrimitive {
     /// Create a new `PathSegToPrimitive` converter.
     /// It saves the state necessary to transform relative, smooth, and vertical/horizontal Segments into `Primitive`s
     pub fn new() -> Self {
         PathSegToPrimitive {
-            pos: (Zero::zero(), Zero::zero()),
-            last_move: (Zero::zero(), Zero::zero()),
-            cubic_smooth: (Zero::zero(), Zero::zero()),
-            quadratic_smooth: (Zero::zero(), Zero::zero()),
+            pos: (0.0, 0.0),
+            last_move: (0.0, 0.0),
+            cubic_smooth: (0.0, 0.0),
+            quadratic_smooth: (0.0, 0.0),
         }
     }
 }
 
-fn to_abs<T: Add<T, Output=T>>(pos: (T,T), rel: (T, T)) -> (T, T) {
+fn to_abs(pos: (f32, f32), rel: (f32, f32)) -> (f32, f32) {
     let (rel_x, rel_y) = rel;
     let (pos_x, pos_y) = pos;
     (pos_x + rel_x, pos_y + rel_y)
 }
 
-fn predict<T: Copy + Add<T, Output=T> + Sub<T, Output=T>>(new_pos: (T,T), point: (T, T)) -> (T, T) {
+fn predict(new_pos: (f32, f32), point: (f32, f32)) -> (f32, f32) {
     let (point_x, point_y) = point;
     let (pos_x, pos_y) = new_pos;
     let (diff_x, diff_y) = (pos_x - point_x, pos_y - point_y);
     (pos_x + diff_x, pos_y + diff_y)
 }
 
-impl <T: Copy + Add<T, Output=T> + Sub<T, Output=T>> PathSegToPrimitive<T> {
+impl PathSegToPrimitive {
     /// Convert a `PathSeg` to a `Primitive`.
-    pub fn convert(&mut self, seg: PathSeg<T>) -> Primitive<T> {
+    pub fn convert(&mut self, seg: PathSeg) -> Primitive {
         match seg {
             PathSeg::Closepath => {
                 self.pos = self.last_move;
