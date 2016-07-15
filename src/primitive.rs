@@ -251,14 +251,22 @@ impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
                     [ PathSeg::LinetoAbs(self.round_pair(p)), PathSeg::LinetoRel(self.round_pair(self.to_rel(p))) ]
                 }
             }
-            Primitive::CurvetoCubic(p1, p2, p) => [
-                PathSeg::CurvetoCubicAbs(self.round_pair(p1), self.round_pair(p2), self.round_pair(p)),
-                PathSeg::CurvetoCubicRel(self.round_pair(self.to_rel(p1)), self.round_pair(self.to_rel(p2)), self.round_pair(self.to_rel(p)))
-            ],
-            Primitive::CurvetoQuadratic(p1, p) => [
-                PathSeg::CurvetoQuadraticAbs(self.round_pair(p1), self.round_pair(p)),
-                PathSeg::CurvetoQuadraticRel(self.round_pair(self.to_rel(p1)), self.round_pair(self.to_rel(p)))
-            ],
+            Primitive::CurvetoCubic(p1, p2, p) => if (p1.0 - self.path_seg_to_primitive.cubic_smooth.0).abs() <= self.epsilon && (p1.1 - self.path_seg_to_primitive.cubic_smooth.1).abs() <= self.epsilon {
+                [
+                PathSeg::CurvetoCubicSmoothAbs(self.round_pair(p2), self.round_pair(p)),
+                PathSeg::CurvetoCubicSmoothRel(self.round_pair(self.to_rel(p2)), self.round_pair(self.to_rel(p)))
+                ]
+            } else {
+                [ PathSeg::CurvetoCubicAbs(self.round_pair(p1), self.round_pair(p2), self.round_pair(p)),
+                PathSeg::CurvetoCubicRel(self.round_pair(self.to_rel(p1)), self.round_pair(self.to_rel(p2)), self.round_pair(self.to_rel(p))) ]
+            },
+            Primitive::CurvetoQuadratic(p1, p) => if (p1.0 - self.path_seg_to_primitive.quadratic_smooth.0).abs() <= self.epsilon && (p1.1 - self.path_seg_to_primitive.quadratic_smooth.1).abs() <= self.epsilon {
+                [ PathSeg::CurvetoQuadraticSmoothAbs(self.round_pair(p)),
+                PathSeg::CurvetoQuadraticSmoothRel(self.round_pair(self.to_rel(p))) ]
+            } else {
+                [ PathSeg::CurvetoQuadraticAbs(self.round_pair(p1), self.round_pair(p)),
+                PathSeg::CurvetoQuadraticRel(self.round_pair(self.to_rel(p1)), self.round_pair(self.to_rel(p))) ]
+            },
             Primitive::Arc(r1, r2, rot, f1, f2, p) => [
                 PathSeg::ArcAbs(self.round(r1), self.round(r2), self.round(rot), f1, f2, self.round_pair(p)),
                 PathSeg::ArcAbs(self.round(r1), self.round(r2), self.round(rot), f1, f2, self.round_pair(self.to_rel(p)))

@@ -18,7 +18,6 @@ Version history
 Planned features
 ----------------
 
- - Complete writing of `Primitive`s (smooth beziers).
  - Implement `FromStr` for `Primitive`.
  - Support to parse `<polygon>`s and `<polyline>`s into `Primitive`s.
  - Support to convert `<rect>`s with rounded corners into `Primitive`s.
