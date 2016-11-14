@@ -4,7 +4,6 @@
 use util::{round_precision, round_precision_pair};
 use path::{PathSeg, PathSegReader, PathSegToPrimitive, Error, PathSegWriter};
 use std::fmt;
-use std::fmt::Display;
 use std::f32::{EPSILON, MIN_10_EXP};
 
 /// A geometric primitive.
@@ -306,7 +305,7 @@ pub fn write_path<'a, 'b, W>(sink: &mut W, primitives: &'b [Primitive], pretty: 
 where W: 'a + fmt::Write {
     let mut pw = PathWriter::new(sink, pretty, precision);
     for primitive in primitives {
-        try!(pw.write(primitive.clone()));
+        pw.write(primitive.clone())?;
     }
     Ok(())
 }

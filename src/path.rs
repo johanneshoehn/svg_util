@@ -351,78 +351,77 @@ impl<'a> PathSegReader<'a> {
             self.first = false;
         }
 
-        let ret = match mode {
+        match mode {
             PathSegType::ClosepathAbs | PathSegType::ClosepathRel => {
                 // `Closepath` can't be repeated without reusing 'z'/'Z'.
                 self.mode = None;
                 Ok(PathSeg::Closepath)
             }
             PathSegType::MovetoAbs => {
-                Ok(PathSeg::MovetoAbs(try!(self.get_coordinate_pair())))
+                Ok(PathSeg::MovetoAbs(self.get_coordinate_pair()?))
             }
             PathSegType::MovetoRel => {
-                Ok(PathSeg::MovetoRel(try!(self.get_coordinate_pair())))
+                Ok(PathSeg::MovetoRel(self.get_coordinate_pair()?))
             }
             PathSegType::LinetoAbs => {
-                Ok(PathSeg::LinetoAbs(try!(self.get_coordinate_pair())))
+                Ok(PathSeg::LinetoAbs(self.get_coordinate_pair()?))
             }
             PathSegType::LinetoRel => {
-                Ok(PathSeg::LinetoRel(try!(self.get_coordinate_pair())))
+                Ok(PathSeg::LinetoRel(self.get_coordinate_pair()?))
             }
             PathSegType::CurvetoCubicAbs => {
-                let (p1, p2, p) = try!(self.get_three_coordinate_pairs());
+                let (p1, p2, p) = self.get_three_coordinate_pairs()?;
                 Ok(PathSeg::CurvetoCubicAbs(p1, p2, p))
             }
             PathSegType::CurvetoCubicRel => {
-                let (p1, p2, p) = try!(self.get_three_coordinate_pairs());
+                let (p1, p2, p) = self.get_three_coordinate_pairs()?;
                 Ok(PathSeg::CurvetoCubicRel(p1, p2, p))
             }
             PathSegType::CurvetoQuadraticAbs => {
-                let (p1, p) = try!(self.get_two_coordinate_pairs());
+                let (p1, p) = self.get_two_coordinate_pairs()?;
                 Ok(PathSeg::CurvetoQuadraticAbs(p1, p))
             }
             PathSegType::CurvetoQuadraticRel => {
-                let (p1, p) = try!(self.get_two_coordinate_pairs());
+                let (p1, p) = self.get_two_coordinate_pairs()?;
                 Ok(PathSeg::CurvetoQuadraticRel(p1, p))
             }
             PathSegType::ArcAbs => {
                 let (r1, r2, rotation, large_arc_flag, sweep_flag, p) =
-                    try!(self.get_arc_argument());
+                    self.get_arc_argument()?;
                 Ok(PathSeg::ArcAbs(r1, r2, rotation, large_arc_flag, sweep_flag, p))
             }
             PathSegType::ArcRel => {
                 let (r1, r2, rotation, large_arc_flag, sweep_flag, p) =
-                    try!(self.get_arc_argument());
+                    self.get_arc_argument()?;
                 Ok(PathSeg::ArcRel(r1, r2, rotation, large_arc_flag, sweep_flag, p))
             }
             PathSegType::LinetoHorizontalAbs => {
-                Ok(PathSeg::LinetoHorizontalAbs(try!(self.get_number(false))))
+                Ok(PathSeg::LinetoHorizontalAbs(self.get_number(false)?))
             }
             PathSegType::LinetoHorizontalRel => {
-                Ok(PathSeg::LinetoHorizontalRel(try!(self.get_number(false))))
+                Ok(PathSeg::LinetoHorizontalRel(self.get_number(false)?))
             }
             PathSegType::LinetoVerticalAbs => {
-                Ok(PathSeg::LinetoVerticalAbs(try!(self.get_number(false))))
+                Ok(PathSeg::LinetoVerticalAbs(self.get_number(false)?))
             }
             PathSegType::LinetoVerticalRel => {
-                Ok(PathSeg::LinetoVerticalRel(try!(self.get_number(false))))
+                Ok(PathSeg::LinetoVerticalRel(self.get_number(false)?))
             }
             PathSegType::CurvetoCubicSmoothAbs => {
-                let (p2, p) = try!(self.get_two_coordinate_pairs());
+                let (p2, p) = self.get_two_coordinate_pairs()?;
                 Ok((PathSeg::CurvetoCubicSmoothAbs(p2, p)))
             }
             PathSegType::CurvetoCubicSmoothRel => {
-                let (p2, p) = try!(self.get_two_coordinate_pairs());
+                let (p2, p) = self.get_two_coordinate_pairs()?;
                 Ok((PathSeg::CurvetoCubicSmoothRel(p2, p)))
             }
             PathSegType::CurvetoQuadraticSmoothAbs => {
-                Ok(PathSeg::CurvetoQuadraticSmoothAbs(try!(self.get_coordinate_pair())))
+                Ok(PathSeg::CurvetoQuadraticSmoothAbs(self.get_coordinate_pair()?))
             }
             PathSegType::CurvetoQuadraticSmoothRel => {
-                Ok(PathSeg::CurvetoQuadraticSmoothRel(try!(self.get_coordinate_pair())))
+                Ok(PathSeg::CurvetoQuadraticSmoothRel(self.get_coordinate_pair()?))
             }
-        };
-        return ret;
+        }
     }
 
     fn remove_leading_whitespace(&mut self) {
@@ -546,32 +545,32 @@ impl<'a> PathSegReader<'a> {
     }
 
     fn get_coordinate_pair(&mut self) -> Result<(f32, f32), Error> {
-        let x = try!(self.get_number(false));
+        let x = self.get_number(false)?;
         self.remove_leading_comma_whitespace();
-        let y = try!(self.get_number(false));
+        let y = self.get_number(false)?;
         Ok((x, y))
     }
 
     fn get_two_coordinate_pairs(&mut self) -> Result<((f32, f32), (f32, f32)), Error> {
-        let p1 = try!(self.get_coordinate_pair());
+        let p1 = self.get_coordinate_pair()?;
         self.remove_leading_comma_whitespace();
-        let p2 = try!(self.get_coordinate_pair());
+        let p2 = self.get_coordinate_pair()?;
         Ok((p1, p2))
     }
 
     fn get_three_coordinate_pairs(&mut self) -> Result<((f32, f32), (f32, f32), (f32, f32)), Error> {
-        let p1 = try!(self.get_coordinate_pair());
+        let p1 = self.get_coordinate_pair()?;
         self.remove_leading_comma_whitespace();
-        let p2 = try!(self.get_coordinate_pair());
+        let p2 = self.get_coordinate_pair()?;
         self.remove_leading_comma_whitespace();
-        let p3 = try!(self.get_coordinate_pair());
+        let p3 = self.get_coordinate_pair()?;
         Ok((p1, p2, p3))
     }
 
     fn get_arc_argument(&mut self) -> Result<(f32, f32, f32, bool, bool, (f32, f32)), Error> {
-        let (r1, r2) = try!(self.get_coordinate_pair());
+        let (r1, r2) = self.get_coordinate_pair()?;
         self.remove_leading_comma_whitespace();
-        let rotation = try!(self.get_number(true));
+        let rotation = self.get_number(true)?;
         self.remove_leading_comma_whitespace();
 
         let large_arc_flag = match self.src.first() {
@@ -592,7 +591,7 @@ impl<'a> PathSegReader<'a> {
 
         self.remove_leading_comma_whitespace();
 
-        let p = try!(self.get_coordinate_pair());
+        let p = self.get_coordinate_pair()?;
         Ok((r1, r2, rotation, large_arc_flag, sweep_flag, p))
     }
 }
@@ -696,13 +695,12 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
     fn write_num(&mut self, num: f32) -> Result<(), fmt::Error> {
         if self.pretty {
             // Always write a space when pretty printing.
-            try!(self.sink.write_char(' '));
-            try!(write!(self.sink, "{}", num));
-            return Ok(());
+            self.sink.write_char(' ')?;
+            write!(self.sink, "{}", num)?;
         } else {
             let mut optimized_writer = DropLeadingZero::new(&mut self.sink, self.last_token);
-            try!(write!(optimized_writer, "{}", num));
-            self.last_token = try!(optimized_writer.finish_and_return_token_written());
+            write!(optimized_writer, "{}", num)?;
+            self.last_token = optimized_writer.finish_and_return_token_written()?;
         }
         Ok(())
     }
@@ -710,16 +708,17 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
     /// Write a x, y pair of numbers.
     fn write_pair(&mut self, pair: (f32, f32)) -> Result<(), fmt::Error> {
         let (x,y) = pair;
-        try!(self.write_num(x));
-        self.write_num(y)
+        self.write_num(x)?;
+        self.write_num(y)?;
+        Ok(())
     }
     
     /// Write a flag (used in arcs).
     fn write_flag(&mut self, flag: bool) -> Result<(), fmt::Error> {
         if self.pretty || self.last_token != TokenWritten::NotANumber {
-            try!(self.sink.write_char(' '));
+            self.sink.write_char(' ')?;
         }
-        try!(self.sink.write_char(if flag { '1' } else { '0' }));
+        self.sink.write_char(if flag { '1' } else { '0' })?;
         self.last_token = TokenWritten::NotANumber;
         Ok(())
     }
@@ -734,11 +733,11 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
             match path_seg_type {
                 // Moves should stand on new lines when pretty printing.
                 PathSegType::MovetoAbs | PathSegType::MovetoRel => {
-                    try!(self.sink.write_char('\n'));
+                    self.sink.write_char('\n')?;
                 }
                 // Other `PathSeg`s should be seperated by spaces.
                 _ => {
-                    try!(self.sink.write_char(' '));
+                    self.sink.write_char(' ')?;
                 }
             }
         }
@@ -755,7 +754,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
         };
 
         if need_mode_character {
-            try!(self.sink.write_char(path_seg_type.into()));
+            self.sink.write_char(path_seg_type.into())?;
             self.last_token = TokenWritten::NotANumber;
         }
 
@@ -768,22 +767,22 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
                 self.write_pair(p),
             PathSeg::CurvetoCubicAbs(p1, p2, p) |
             PathSeg::CurvetoCubicRel(p1, p2, p) => {
-                try!(self.write_pair(p1));
-                try!(self.write_pair(p2));
+                self.write_pair(p1)?;
+                self.write_pair(p2)?;
                 self.write_pair(p)
             }
             PathSeg::CurvetoQuadraticAbs(p1, p) |
             PathSeg::CurvetoQuadraticRel(p1, p) => {
-                try!(self.write_pair(p1));
+                self.write_pair(p1)?;
                 self.write_pair(p)
             }
             PathSeg::ArcAbs(r1, r2, rotation, large_arc_flag, sweep_flag, p) |
             PathSeg::ArcRel(r1, r2, rotation, large_arc_flag, sweep_flag, p) => {
-                try!(self.write_num(r1));
-                try!(self.write_num(r2));
-                try!(self.write_num(rotation));
-                try!(self.write_flag(large_arc_flag));
-                try!(self.write_flag(sweep_flag));
+                self.write_num(r1)?;
+                self.write_num(r2)?;
+                self.write_num(rotation)?;
+                self.write_flag(large_arc_flag)?;
+                self.write_flag(sweep_flag)?;
                 self.write_pair(p)
             }
             PathSeg::LinetoHorizontalAbs(x) |
@@ -794,7 +793,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
                 self.write_num(y),
             PathSeg::CurvetoCubicSmoothAbs(p2, p) |
             PathSeg::CurvetoCubicSmoothRel(p2, p) => {
-                try!(self.write_pair(p2));
+                self.write_pair(p2)?;
                 self.write_pair(p)
             }
             PathSeg::CurvetoQuadraticSmoothAbs(p) |
@@ -835,7 +834,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
 pub fn write_all_pathsegs<'a, W: Write>(sink: &mut W, pathsegs: &'a[PathSeg], pretty: bool) -> Result<(), fmt::Error> {
     let mut writer = PathSegWriter::new(sink, pretty);
     for seg in pathsegs {
-        try!(writer.write(seg.clone()));
+        writer.write(seg.clone())?;
     }
     Ok(())
 }

@@ -87,9 +87,9 @@ impl <'a, W: Write> DropLeadingZero<'a, W> {
     pub fn finish_and_return_token_written(self) -> Result<TokenWritten, Error> {
         if self.drop_state == DropState::JustDroppedZero {
             if self.last_token_written != TokenWritten::NotANumber {
-                try!(self.writer.write_char(' '));
+                self.writer.write_char(' ')?;
             }
-            try!(self.writer.write_char('0'));
+            self.writer.write_char('0')?;
             
         }
         if self.wrote_e_or_point {
@@ -120,7 +120,7 @@ impl <'a, W: Write> Write for DropLeadingZero<'a, W> {
         let ch = iter.next().unwrap();
         let rest = iter.as_str();
         
-        try!(self.write_char(ch));
+        self.write_char(ch)?;
         self.write_str(rest)
     }
     fn write_char(&mut self, c: char) -> Result<(), Error> {
@@ -129,19 +129,19 @@ impl <'a, W: Write> Write for DropLeadingZero<'a, W> {
                 if c == '.' || c == 'e' || c == 'E' {
                     self.wrote_e_or_point = true;
                 }
-                return self.writer.write_char(c);
+                self.writer.write_char(c)
             }
             DropState::JustDroppedZero => {
                 if self.last_token_written == TokenWritten::AsInteger {
-                    try!(self.writer.write_char(' '));
+                    self.writer.write_char(' ')?;
                 }
                 self.drop_state = DropState::Pass;
                 if c == '.' || c == 'e' || c == 'E' {
                     self.wrote_e_or_point = true;
                 } else if self.last_token_written == TokenWritten::WithDotOrE {
-                    try!(self.writer.write_char(' '));
+                    self.writer.write_char(' ')?;
                 }
-                return self.writer.write_char(c);
+                self.writer.write_char(c)
             }
             DropState::WrotePlusMinus => {
                 match c {
@@ -179,14 +179,14 @@ impl <'a, W: Write> Write for DropLeadingZero<'a, W> {
                         self.wrote_e_or_point = true;
                         self.drop_state = DropState::Pass;
                         if self.last_token_written == TokenWritten::AsInteger {
-                            try!(self.writer.write_char(' '));
+                            self.writer.write_char(' ')?;
                         }
                         self.writer.write_char(c)
                     }
                     _ => {
                         self.drop_state = DropState::Pass;
                         if self.last_token_written != TokenWritten::NotANumber {
-                            try!(self.writer.write_char(' '));
+                            self.writer.write_char(' ')?;
                         }
                         self.writer.write_char(c)
                     }
