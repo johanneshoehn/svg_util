@@ -11,6 +11,7 @@
 use primitive::Primitive;
 use util::{TokenWritten, DropLeadingZero, Count};
 
+use std::error;
 use std::fmt;
 use std::fmt::Write;
 use std::iter::Iterator;
@@ -249,15 +250,37 @@ pub enum Error {
     /// This can occur when using `from_str`,
     EndOfString,
     /// Expected the mode to be set, but got another character.
-    ExpectedModeCharacter(u8),
+    ExpectedModeCharacter,
     /// Paths need to start with a Moveto command, but this one didn't.
     ExpectedMove,
     /// Expected a number but got something else.
     ExpectedNumber,
     /// Expected a flag, `0` or `1`.
-    ExpectedFlag,
-    /// A correct number was found, but it was not possible to convert it into the number type used.
-    NumberParseError,
+    ExpectedFlag
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Error::EndOfString => write!(f, "Path string ended, but expected further numbers"),
+            Error::ExpectedModeCharacter => write!(f, "Expected a new command character"),
+            Error::ExpectedMove => write!(f, "Expected a `M` or `m`"),
+            Error::ExpectedNumber => write!(f, "Expected a number"),
+            Error::ExpectedFlag => write!(f, "Expected a flag (`0` or `1`)")
+        }
+    }
+}
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+                match *self {
+            Error::EndOfString => "Path string ended, but expected further numbers",
+            Error::ExpectedModeCharacter => "Expected a new command character",
+            Error::ExpectedMove => "Expected a `M` or `m`",
+            Error::ExpectedNumber => "Expected a number",
+            Error::ExpectedFlag => "Expected a flag (`0` or `1`)"
+        }
+    }
 }
 
 // FIXME: maybe an own error type makes more sense?
@@ -319,8 +342,7 @@ impl<'a> PathSegReader<'a> {
     fn pop_empty(&mut self) -> Result<PathSeg, Error> {
 
         // Look ahead if the next char changes the type of the `PathSeg`
-        let first = *(self.src.first().expect("Path string shouldn't be empty but it is!"));
-        let mode = if let Some(mode) = PathSegType::from_u8(first) {
+        let mode = if let Some(mode) = PathSegType::from_u8(self.src[0]) {
             self.mode = Some(mode);
             self.src = &self.src[1..];
             self.remove_leading_whitespace();
@@ -328,7 +350,7 @@ impl<'a> PathSegReader<'a> {
         } else {
             // Continuation of previous command  E.g.: `h 1, 1` is equal to `h 1 h 1`
             self.remove_leading_comma_whitespace();
-            self.mode.ok_or(Error::ExpectedModeCharacter(first))?
+            self.mode.ok_or(Error::ExpectedModeCharacter)?
         };
 
         // First Path Segment needs to be a Moveto
@@ -526,10 +548,7 @@ impl<'a> PathSegReader<'a> {
 
         // Safe because we just matched only numbers, '+', '-', '.', 'e' and 'E's.
         let numstring = unsafe { from_utf8_unchecked(num) };
-        match f32::from_str(numstring) {
-            Ok(num) => Ok(num),
-            _ => Err(Error::NumberParseError),
-        }
+        Ok(f32::from_str(numstring).unwrap())
     }
 
     fn get_coordinate_pair(&mut self) -> Result<(f32, f32), Error> {
