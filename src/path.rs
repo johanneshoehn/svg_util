@@ -319,34 +319,22 @@ impl<'a> PathSegReader<'a> {
     fn pop_empty(&mut self) -> Result<PathSeg, Error> {
 
         // Look ahead if the next char changes the type of the `PathSeg`
-        let first = match self.src.first() {
-            None => {
-                panic!("Path string shouldn't be empty but it is!");
-            }
-            Some(c) => *c,
-        };
-        if let Some(mode) = PathSegType::from_u8(first) {
+        let first = *(self.src.first().expect("Path string shouldn't be empty but it is!"));
+        let mode = if let Some(mode) = PathSegType::from_u8(first) {
             self.mode = Some(mode);
             self.src = &self.src[1..];
             self.remove_leading_whitespace();
+            mode
         } else {
-            // there might be a comma seperating path segments if there's no
-            // letter. E.g.: `h 1, 1` is equal to `h 1 h 1`
+            // Continuation of previous command  E.g.: `h 1, 1` is equal to `h 1 h 1`
             self.remove_leading_comma_whitespace();
-        }
-
-        let mode = match self.mode {
-            Some(mode) => mode,
-            None => return Err(Error::ExpectedModeCharacter(first)),
+            self.mode.ok_or(Error::ExpectedModeCharacter(first))?
         };
 
         // First Path Segment needs to be a Moveto
         if self.first {
-            match mode {
-                PathSegType::MovetoAbs | PathSegType::MovetoRel => {}
-                _ => {
-                    return Err(Error::ExpectedMove);
-                }
+            if mode != PathSegType::MovetoAbs || mode != PathSegType::MovetoRel {
+                return Err(Error::ExpectedMove);
             }
             self.first = false;
         }
