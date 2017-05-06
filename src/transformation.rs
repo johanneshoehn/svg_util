@@ -17,18 +17,18 @@ pub enum Transformation {
 }
 
 impl fmt::Display for Transformation {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             // Todo: print e.g. 0.123 as .123
-            Transformation::Matrix(TransformationMatrix(a,b,c,d,e,f)) => write!(f, "matrix({} {} {} {} {} {})", a, b, c, d, e, f),
-            Transformation::Translate(tx, 0.0) => write!(f, "translate({})", tx),
-            Transformation::Translate(tx, ty) => write!(f, "translate({} {})", tx, ty),
-            Transformation::Scale(sx, sy) if sx == sy => write!(f, "scale({})", sx),
-            Transformation::Scale(sx, sy) => write!(f, "scale({} {})", sx, sy),
-            Transformation::Rotate(angle, 0.0, 0.0) => write!(f, "rotate({})", angle),
-            Transformation::Rotate(angle, cx, cy) => write!(f, "rotate({} {} {})", angle, cx, cy),
-            Transformation::SkewX(angle) => write!(f, "skewX({})", angle),
-            Transformation::SkewY(angle) => write!(f, "skewY({})", angle)
+            Transformation::Matrix(TransformationMatrix(a,b,c,d,e,f)) => write!(fmt, "matrix({} {} {} {} {} {})", a, b, c, d, e, f),
+            Transformation::Translate(tx, 0.0) => write!(fmt, "translate({})", tx),
+            Transformation::Translate(tx, ty) => write!(fmt, "translate({} {})", tx, ty),
+            Transformation::Scale(sx, sy) if sx == sy => write!(fmt, "scale({})", sx),
+            Transformation::Scale(sx, sy) => write!(fmt, "scale({} {})", sx, sy),
+            Transformation::Rotate(angle, 0.0, 0.0) => write!(fmt, "rotate({})", angle),
+            Transformation::Rotate(angle, cx, cy) => write!(fmt, "rotate({} {} {})", angle, cx, cy),
+            Transformation::SkewX(angle) => write!(fmt, "skewX({})", angle),
+            Transformation::SkewY(angle) => write!(fmt, "skewY({})", angle)
         }
     }
 }
