@@ -9,7 +9,7 @@
 //! from the `primitive` module is probably a better idea.
 
 use primitive::Primitive;
-use util::{TokenWritten, DropLeadingZero, Count};
+use util::{WhiteSpaceStatus, DropLeadingZero, Count};
 
 use std::error;
 use std::fmt;
@@ -355,7 +355,7 @@ impl<'a> PathSegReader<'a> {
 
         // First Path Segment needs to be a Moveto
         if self.first {
-            if mode != PathSegType::MovetoAbs || mode != PathSegType::MovetoRel {
+            if mode != PathSegType::MovetoAbs && mode != PathSegType::MovetoRel {
                 return Err(Error::ExpectedMove);
             }
             self.first = false;
@@ -682,7 +682,7 @@ pub struct PathSegWriter<'a, W: 'a + Write> {
     /// Wheter to pretty-print or have an optimized output.
     pretty: bool,
     /// What kind the token was that was last written.
-    last_token: TokenWritten,
+    white_space_needed: WhiteSpaceStatus,
 }
 
 impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
@@ -694,7 +694,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
             sink: sink,
             mode: None,
             pretty: pretty,
-            last_token: TokenWritten::NotANumber,
+            white_space_needed: WhiteSpaceStatus::NoneNeeded,
         }
     }
     
@@ -705,9 +705,9 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
             self.sink.write_char(' ')?;
             write!(self.sink, "{}", num)?;
         } else {
-            let mut optimized_writer = DropLeadingZero::new(&mut self.sink, self.last_token);
+            let mut optimized_writer = DropLeadingZero::new(&mut self.sink, self.white_space_needed);
             write!(optimized_writer, "{}", num)?;
-            self.last_token = optimized_writer.finish_and_return_token_written()?;
+            self.white_space_needed = optimized_writer.finish_and_return_token_written()?;
         }
         Ok(())
     }
@@ -722,11 +722,11 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
     
     /// Write a flag (used in arcs).
     fn write_flag(&mut self, flag: bool) -> Result<(), fmt::Error> {
-        if self.pretty || self.last_token != TokenWritten::NotANumber {
+        if self.pretty || self.white_space_needed != WhiteSpaceStatus::NoneNeeded {
             self.sink.write_char(' ')?;
         }
         self.sink.write_char(if flag { '1' } else { '0' })?;
-        self.last_token = TokenWritten::NotANumber;
+        self.white_space_needed = WhiteSpaceStatus::NoneNeeded;
         Ok(())
     }
 
@@ -762,7 +762,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
 
         if need_mode_character {
             self.sink.write_char(path_seg_type.into())?;
-            self.last_token = TokenWritten::NotANumber;
+            self.white_space_needed = WhiteSpaceStatus::NoneNeeded;
         }
 
         match path_seg {
@@ -816,7 +816,7 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
             sink: &mut count,
             mode: self.mode,
             pretty: self.pretty,
-            last_token: self.last_token,
+            white_space_needed: self.white_space_needed,
         };
         let res = psw_copy.write(path_seg);
         if res.is_err() {

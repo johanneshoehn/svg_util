@@ -1,21 +1,20 @@
 use std::fmt::{Write, Error};
 
-/// How the `SvgNumber` was written.
+/// Wether whitespace is needed before writing the next number.
 ///
-/// To know wether we need whitespace before writing a new `SvgNumber` we need to know what we wrote before.
+/// To know wether we need whitespace before writing a new number we need to know what we wrote before.
 /// Between `.1` and `.1` we can drop the whitespace as `.1.1` will be parsed as two numbers.
-// TODO: Maybe rename into when a space needs to be emitted?
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
-pub enum TokenWritten {
-    /// Token written is whitespace, a `PathSeg` identifier char or a flag of an arc.
+pub enum WhiteSpaceStatus {
+    /// A whitespace character, a `PathSeg` identifier char or a flag of an arc was written,.
     /// Never needs following whitespace.
-    NotANumber,
-    /// Token written is a Number, consisting only of `+`/`-` and digits.
-    /// Needs following whitespace if next Number starts with a digit or a `.`, not when starting with `+` or `-`.
-    AsInteger,
-    /// Token written is a Number, that also contains `.` and/or `e`/`E`.
-    /// Needs following whitespace if next Number starts with a digit, not when starting with `.`, `+` or `-`.
-    WithDotOrE,
+    NoneNeeded,
+    /// A number consisting only of `+`/`-` and digits was written.
+    /// Needs following whitespace if next number starts with a digit or a `.`, not when starting with `+` or `-`.
+    NeededIfDigitOrDot,
+    /// A number was written which also contains `.` and/or `e`/`E`.
+    /// Needs following whitespace if next number starts with a digit, not when starting with `.`, `+` or `-`.
+    NeededIfDigit,
 }
 
 /// Round a `f32` to the nearest `f32` that corresponds to a decimal number with max `precision` fractional digits.
@@ -58,7 +57,7 @@ pub struct DropLeadingZero<'a, W: Write + 'a> {
     /// the underlying `Write`r.
     writer: &'a mut W,
     drop_state: DropState,
-    last_token_written: TokenWritten,
+    white_space_needed: WhiteSpaceStatus,
     // wether wrote a '.' or a 'e'/'E'
     pub wrote_e_or_point: bool,
 }
@@ -76,26 +75,26 @@ enum DropState {
 }
 
 impl <'a, W: Write> DropLeadingZero<'a, W> {
-    pub fn new(writer: &'a mut W, last_token_written: TokenWritten) -> DropLeadingZero<'a, W> {
+    pub fn new(writer: &'a mut W, white_space_needed: WhiteSpaceStatus) -> DropLeadingZero<'a, W> {
         DropLeadingZero {
             writer: writer,
             drop_state: DropState::Start,
-            last_token_written: last_token_written,
+            white_space_needed: white_space_needed,
             wrote_e_or_point: false,
         }
     }
-    pub fn finish_and_return_token_written(self) -> Result<TokenWritten, Error> {
+    pub fn finish_and_return_token_written(self) -> Result<WhiteSpaceStatus, Error> {
         if self.drop_state == DropState::JustDroppedZero {
-            if self.last_token_written != TokenWritten::NotANumber {
+            if self.white_space_needed != WhiteSpaceStatus::NoneNeeded {
                 self.writer.write_char(' ')?;
             }
             self.writer.write_char('0')?;
             
         }
         if self.wrote_e_or_point {
-            Ok(TokenWritten::WithDotOrE)
+            Ok(WhiteSpaceStatus::NeededIfDigit)
         } else {
-            Ok(TokenWritten::AsInteger)
+            Ok(WhiteSpaceStatus::NeededIfDigitOrDot)
         }
     }
 }
@@ -132,13 +131,13 @@ impl <'a, W: Write> Write for DropLeadingZero<'a, W> {
                 self.writer.write_char(c)
             }
             DropState::JustDroppedZero => {
-                if self.last_token_written == TokenWritten::AsInteger {
+                if self.white_space_needed == WhiteSpaceStatus::NeededIfDigitOrDot {
                     self.writer.write_char(' ')?;
                 }
                 self.drop_state = DropState::Pass;
                 if c == '.' || c == 'e' || c == 'E' {
                     self.wrote_e_or_point = true;
-                } else if self.last_token_written == TokenWritten::WithDotOrE {
+                } else if self.white_space_needed == WhiteSpaceStatus::NeededIfDigit {
                     self.writer.write_char(' ')?;
                 }
                 self.writer.write_char(c)
@@ -148,7 +147,7 @@ impl <'a, W: Write> Write for DropLeadingZero<'a, W> {
                     // Drop zero on encountering and signal it in the state.
                     '0' => {
                         // Dirty fix: otherwise this case will break on `"-0"` and will output `"- 0"` instead.
-                        self.last_token_written = TokenWritten::NotANumber;
+                        self.white_space_needed = WhiteSpaceStatus::NoneNeeded;
                         
                         self.drop_state = DropState::JustDroppedZero;
                         Ok(())
@@ -178,14 +177,14 @@ impl <'a, W: Write> Write for DropLeadingZero<'a, W> {
                     '.' | 'e' | 'E' => {
                         self.wrote_e_or_point = true;
                         self.drop_state = DropState::Pass;
-                        if self.last_token_written == TokenWritten::AsInteger {
+                        if self.white_space_needed == WhiteSpaceStatus::NeededIfDigitOrDot {
                             self.writer.write_char(' ')?;
                         }
                         self.writer.write_char(c)
                     }
                     _ => {
                         self.drop_state = DropState::Pass;
-                        if self.last_token_written != TokenWritten::NotANumber {
+                        if self.white_space_needed != WhiteSpaceStatus::NoneNeeded {
                             self.writer.write_char(' ')?;
                         }
                         self.writer.write_char(c)
@@ -200,7 +199,7 @@ impl <'a, W: Write> Write for DropLeadingZero<'a, W> {
 #[test]
 fn test_drop() {
     let mut s = String::new();
-    let res = {let mut d = DropLeadingZero::new(&mut s, TokenWritten::NotANumber);
+    let res = {let mut d = DropLeadingZero::new(&mut s, WhiteSpaceStatus::NoneNeeded);
     let f : f64 = 0.1;
     write!(&mut d, "{}", f)};
     assert_eq!(s, ".1");
@@ -208,7 +207,7 @@ fn test_drop() {
     
     let mut s = String::new();
     {
-        let mut d = DropLeadingZero::new(&mut s, TokenWritten::NotANumber);
+        let mut d = DropLeadingZero::new(&mut s, WhiteSpaceStatus::NoneNeeded);
         let f : f64 = 0.0;
         write!(&mut d, "{}", f).unwrap();
         d.finish_and_return_token_written().unwrap();
@@ -217,17 +216,17 @@ fn test_drop() {
     
     let mut s = String::new();
     let token = {
-        let mut d = DropLeadingZero::new(&mut s, TokenWritten::NotANumber);
+        let mut d = DropLeadingZero::new(&mut s, WhiteSpaceStatus::NoneNeeded);
         let f : f64 = -0.0;
         write!(&mut d, "{}", f).unwrap();
         d.finish_and_return_token_written().unwrap()
     };
-    assert_eq!(token, TokenWritten::AsInteger);
+    assert_eq!(token, WhiteSpaceStatus::NeededIfDigitOrDot);
     assert_eq!(s, "0");
     
     let mut s = String::new();
     {
-        let mut d = DropLeadingZero::new(&mut s, TokenWritten::NotANumber);
+        let mut d = DropLeadingZero::new(&mut s, WhiteSpaceStatus::NoneNeeded);
         write!(&mut d, "-0").unwrap();
         d.finish_and_return_token_written().unwrap();
     }
@@ -235,12 +234,12 @@ fn test_drop() {
     
     let mut s = String::new();
     let token = {
-        let mut d = DropLeadingZero::new(&mut s, TokenWritten::AsInteger);
+        let mut d = DropLeadingZero::new(&mut s, WhiteSpaceStatus::NeededIfDigitOrDot);
         let f : f64 = 0.1;
         write!(&mut d, "{}", f).unwrap();
         d.finish_and_return_token_written().unwrap()
     };
-    assert_eq!(token, TokenWritten::WithDotOrE);
+    assert_eq!(token, WhiteSpaceStatus::NeededIfDigit);
     assert_eq!(s, " .1");
 }
 
