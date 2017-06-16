@@ -1,6 +1,7 @@
 use std::ops::Mul;
 use std::ops::MulAssign;
 use std::fmt;
+use std::f64;
 
 #[derive(Debug, Copy, Clone)]
 /// A transformation matrix 
@@ -21,11 +22,11 @@ impl fmt::Display for Transformation {
         match *self {
             // Todo: print e.g. 0.123 as .123
             Transformation::Matrix(TransformationMatrix(a,b,c,d,e,f)) => write!(fmt, "matrix({} {} {} {} {} {})", a, b, c, d, e, f),
-            Transformation::Translate(tx, 0.0) => write!(fmt, "translate({})", tx),
+            Transformation::Translate(tx, ty) if ty.abs() <= f64::EPSILON => write!(fmt, "translate({})", tx),
             Transformation::Translate(tx, ty) => write!(fmt, "translate({} {})", tx, ty),
             Transformation::Scale(sx, sy) if sx == sy => write!(fmt, "scale({})", sx),
             Transformation::Scale(sx, sy) => write!(fmt, "scale({} {})", sx, sy),
-            Transformation::Rotate(angle, 0.0, 0.0) => write!(fmt, "rotate({})", angle),
+            Transformation::Rotate(angle, cx, cy) if cx.abs() <= f64::EPSILON && cy.abs() <= f64::EPSILON => write!(fmt, "rotate({})", angle),
             Transformation::Rotate(angle, cx, cy) => write!(fmt, "rotate({} {} {})", angle, cx, cy),
             Transformation::SkewX(angle) => write!(fmt, "skewX({})", angle),
             Transformation::SkewY(angle) => write!(fmt, "skewY({})", angle)
