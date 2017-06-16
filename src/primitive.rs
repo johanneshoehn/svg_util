@@ -206,18 +206,14 @@ impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
 
     fn round(&self, val: f32) -> f32 {
         match self.precision {
-            Some(p) => {
-                round_precision(val, p)
-            }
+            Some(p) => round_precision(val, p),
             None => val
         }
     }
 
     fn round_pair(&self, pair: (f32, f32)) -> (f32, f32) {
         match self.precision {
-            Some(p) => {
-                round_precision_pair(pair, p)
-            }
+            Some(p) => round_precision_pair(pair, p),
             None => pair
         }
     }
@@ -228,7 +224,7 @@ impl <'a, W: 'a + fmt::Write> PathWriter<'a, W> {
 
     pub fn write(&mut self, primitive: Primitive) -> Result<(), fmt::Error> {
         // Generate an absolute and a relative `PathSeg` of the `Primitive`.
-        let path_segs : [PathSeg ; 2]= match primitive {
+        let path_segs : [PathSeg ; 2] = match primitive {
             Primitive::Closepath => {
                 // Current position moves back on closepath.
                 self.path_seg_to_primitive.pos = self.path_seg_to_primitive.last_move;

@@ -337,8 +337,8 @@ impl<'a> PathSegReader<'a> {
         self.max_precision
     }
 
-    // Pop one `PathSeg` with the precondition that there are
-    // `PathSegs` left.
+    /// Pop one `PathSeg` with the precondition that there are
+    /// `PathSegs` left.
     fn pop_empty(&mut self) -> Result<PathSeg, Error> {
 
         // Look ahead if the next char changes the type of the `PathSeg`
@@ -367,18 +367,10 @@ impl<'a> PathSegReader<'a> {
                 self.mode = None;
                 Ok(PathSeg::Closepath)
             }
-            PathSegType::MovetoAbs => {
-                Ok(PathSeg::MovetoAbs(self.get_coordinate_pair()?))
-            }
-            PathSegType::MovetoRel => {
-                Ok(PathSeg::MovetoRel(self.get_coordinate_pair()?))
-            }
-            PathSegType::LinetoAbs => {
-                Ok(PathSeg::LinetoAbs(self.get_coordinate_pair()?))
-            }
-            PathSegType::LinetoRel => {
-                Ok(PathSeg::LinetoRel(self.get_coordinate_pair()?))
-            }
+            PathSegType::MovetoAbs => Ok(PathSeg::MovetoAbs(self.get_coordinate_pair()?)),
+            PathSegType::MovetoRel => Ok(PathSeg::MovetoRel(self.get_coordinate_pair()?)),
+            PathSegType::LinetoAbs => Ok(PathSeg::LinetoAbs(self.get_coordinate_pair()?)),
+            PathSegType::LinetoRel => Ok(PathSeg::LinetoRel(self.get_coordinate_pair()?)),
             PathSegType::CurvetoCubicAbs => {
                 let (p1, p2, p) = self.get_three_coordinate_pairs()?;
                 Ok(PathSeg::CurvetoCubicAbs(p1, p2, p))
@@ -405,18 +397,10 @@ impl<'a> PathSegReader<'a> {
                     self.get_arc_argument()?;
                 Ok(PathSeg::ArcRel(r1, r2, rotation, large_arc_flag, sweep_flag, p))
             }
-            PathSegType::LinetoHorizontalAbs => {
-                Ok(PathSeg::LinetoHorizontalAbs(self.get_number(false)?))
-            }
-            PathSegType::LinetoHorizontalRel => {
-                Ok(PathSeg::LinetoHorizontalRel(self.get_number(false)?))
-            }
-            PathSegType::LinetoVerticalAbs => {
-                Ok(PathSeg::LinetoVerticalAbs(self.get_number(false)?))
-            }
-            PathSegType::LinetoVerticalRel => {
-                Ok(PathSeg::LinetoVerticalRel(self.get_number(false)?))
-            }
+            PathSegType::LinetoHorizontalAbs => Ok(PathSeg::LinetoHorizontalAbs(self.get_number(false)?)),
+            PathSegType::LinetoHorizontalRel => Ok(PathSeg::LinetoHorizontalRel(self.get_number(false)?)),
+            PathSegType::LinetoVerticalAbs => Ok(PathSeg::LinetoVerticalAbs(self.get_number(false)?)),
+            PathSegType::LinetoVerticalRel => Ok(PathSeg::LinetoVerticalRel(self.get_number(false)?)),
             PathSegType::CurvetoCubicSmoothAbs => {
                 let (p2, p) = self.get_two_coordinate_pairs()?;
                 Ok((PathSeg::CurvetoCubicSmoothAbs(p2, p)))
@@ -425,12 +409,10 @@ impl<'a> PathSegReader<'a> {
                 let (p2, p) = self.get_two_coordinate_pairs()?;
                 Ok((PathSeg::CurvetoCubicSmoothRel(p2, p)))
             }
-            PathSegType::CurvetoQuadraticSmoothAbs => {
-                Ok(PathSeg::CurvetoQuadraticSmoothAbs(self.get_coordinate_pair()?))
-            }
-            PathSegType::CurvetoQuadraticSmoothRel => {
+            PathSegType::CurvetoQuadraticSmoothAbs =>
+                Ok(PathSeg::CurvetoQuadraticSmoothAbs(self.get_coordinate_pair()?)),
+            PathSegType::CurvetoQuadraticSmoothRel =>
                 Ok(PathSeg::CurvetoQuadraticSmoothRel(self.get_coordinate_pair()?))
-            }
         }
     }
 
@@ -617,8 +599,8 @@ where T: Copy + FromStr, B: AsRef<[u8]> {
             None => break
         };
         match result {
-            Ok(seg) => { array.push(seg) }
-            Err(e) => { return (array, Some(e), parser.precision()) }
+            Ok(seg) => array.push(seg),
+            Err(e) => return (array, Some(e), parser.precision())
         }
         
     }
@@ -739,13 +721,9 @@ impl<'a, W: 'a + Write> PathSegWriter<'a, W> {
         if self.pretty {
             match path_seg_type {
                 // Moves should stand on new lines when pretty printing.
-                PathSegType::MovetoAbs | PathSegType::MovetoRel => {
-                    self.sink.write_char('\n')?;
-                }
+                PathSegType::MovetoAbs | PathSegType::MovetoRel => self.sink.write_char('\n')?,
                 // Other `PathSeg`s should be seperated by spaces.
-                _ => {
-                    self.sink.write_char(' ')?;
-                }
+                _ => self.sink.write_char(' ')?
             }
         }
 
