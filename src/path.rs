@@ -506,15 +506,12 @@ impl<'a> PathSegReader<'a> {
                 // E.g. 0.1e1 == 1 with precision 0.
                 let num = &self.src[length .. length_after_e];
                 let numstring = unsafe { from_utf8_unchecked(num) };
-                match u8::from_str(numstring) {
-                    Ok(num) => {
-                        if negative {
-                            precision = precision.saturating_add(num);
-                        } else {
-                            precision = precision.saturating_sub(num);
-                        }
+                if let Ok(num) = u8::from_str(numstring) {
+                    if negative {
+                        precision = precision.saturating_add(num);
+                    } else {
+                        precision = precision.saturating_sub(num);
                     }
-                    _ => {}
                 }
                 length = length_after_e;
             }
