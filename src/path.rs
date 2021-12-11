@@ -8,8 +8,8 @@
 //! If you want to do rendering or transformations working on `Primitive`s
 //! from the `primitive` module is probably a better idea.
 
-use primitive::Primitive;
-use util::{Count, DropLeadingZero, WhiteSpaceStatus};
+use crate::primitive::Primitive;
+use crate::util::{Count, DropLeadingZero, WhiteSpaceStatus};
 
 use std::convert::From;
 use std::error;

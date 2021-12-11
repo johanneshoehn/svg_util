@@ -1,10 +1,10 @@
 //! The geometric primitives used in SVG: moves, lines, bezier curves and arcs.
 //!
 //! blub
-use path::{Error, PathSeg, PathSegReader, PathSegToPrimitive, PathSegWriter};
+use crate::path::{Error, PathSeg, PathSegReader, PathSegToPrimitive, PathSegWriter};
+use crate::util::{round_precision, round_precision_pair};
 use std::f32::{EPSILON, MIN_10_EXP};
 use std::fmt;
-use util::{round_precision, round_precision_pair};
 
 /// A geometric primitive.
 ///
