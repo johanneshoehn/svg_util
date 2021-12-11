@@ -6,7 +6,7 @@
 //! This is restricted to the non-xml parts of SVG, as you may want to represent the XML/DOM tree
 //! differently depending on the use case.
 
-pub mod primitive;
 pub mod path;
+pub mod primitive;
 pub mod transformation;
 mod util;

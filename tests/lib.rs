@@ -6,7 +6,7 @@ fn test_optimizing_whitespace_relative() {
     let (primitives, err, precision) = primitive::parse_path("M 100 100 L 101 101");
     assert_eq!(err, None);
     assert_eq!(precision, 0);
-    
+
     let mut str = String::new();
     let res = primitive::write_path(&mut str, &primitives, false, None);
     assert!(res.is_ok());
@@ -18,7 +18,7 @@ fn test_precision() {
     let (primitives, err, precision) = primitive::parse_path("M 1 1 L 1.11 1.11");
     assert_eq!(err, None);
     assert_eq!(precision, 2);
-    
+
     let mut str = String::new();
     let res = primitive::write_path(&mut str, &primitives, false, Some(1));
     assert!(res.is_ok());
@@ -31,7 +31,7 @@ fn test_horizontal_vertical() {
     let (primitives, err, precision) = primitive::parse_path("M 100 100 L 100 101");
     assert_eq!(err, None);
     assert_eq!(precision, 0);
-    
+
     let mut str = String::new();
     let res = primitive::write_path(&mut str, &primitives, false, None);
     assert!(res.is_ok());
@@ -41,7 +41,7 @@ fn test_horizontal_vertical() {
     let (primitives, err, precision) = primitive::parse_path("M 100 100 L 101 100");
     assert_eq!(err, None);
     assert_eq!(precision, 0);
-    
+
     let mut str = String::new();
     let res = primitive::write_path(&mut str, &primitives, false, None);
     assert!(res.is_ok());
@@ -51,7 +51,7 @@ fn test_horizontal_vertical() {
     let (primitives, err, precision) = primitive::parse_path("M 100 100 L 100.1 101");
     assert_eq!(err, None);
     assert_eq!(precision, 1);
-    
+
     let mut str = String::new();
     let res = primitive::write_path(&mut str, &primitives, false, Some(0));
     assert!(res.is_ok());

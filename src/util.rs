@@ -1,4 +1,4 @@
-use std::fmt::{Write, Error};
+use std::fmt::{Error, Write};
 
 /// Wether whitespace is needed before writing the next number.
 ///
@@ -20,9 +20,9 @@ pub enum WhiteSpaceStatus {
 /// Round a `f32` to the nearest `f32` that corresponds to a decimal number with max `precision` fractional digits.
 pub fn round_precision(val: f32, precision: u8) -> f32 {
     // Convert to 64 bit float, to avoid overflow.
-    let val : f64 = f64::from(val);
-    let factor : f64 = (10.0f64).powi(precision as i32);
-    let result : f64 = (val * factor).round() / factor;
+    let val: f64 = f64::from(val);
+    let factor: f64 = (10.0f64).powi(precision as i32);
+    let result: f64 = (val * factor).round() / factor;
     result as f32
 }
 
@@ -45,7 +45,7 @@ fn test_rounding() {
 }
 
 /// Optimizing filter for the output of one SVG number.
-/// 
+///
 /// The filter does the following:
 ///  - Drops the leading zero if it exists (e.g. `-0.1` to `-.1`).
 ///  - Preprints a space if needed (e.g. ' .1' after `1`, but `.1` after `.1`).
@@ -71,15 +71,15 @@ enum DropState {
     // State where we know that it was safe that we dropped a leading zero or we didn't drop a leading zero.
     Pass,
     /// We just dropped a leading zero and might push it on output again if nothing follows, otherwise the number `0` will be formatted as the empty string.
-    JustDroppedZero
+    JustDroppedZero,
 }
 
-impl <'a, W: Write> DropLeadingZero<'a, W> {
+impl<'a, W: Write> DropLeadingZero<'a, W> {
     pub fn new(writer: &'a mut W, white_space_needed: WhiteSpaceStatus) -> DropLeadingZero<'a, W> {
         DropLeadingZero {
-            writer: writer,
+            writer,
             drop_state: DropState::Start,
-            white_space_needed: white_space_needed,
+            white_space_needed,
             wrote_e_or_point: false,
         }
     }
@@ -89,7 +89,6 @@ impl <'a, W: Write> DropLeadingZero<'a, W> {
                 self.writer.write_char(' ')?;
             }
             self.writer.write_char('0')?;
-            
         }
         if self.wrote_e_or_point {
             Ok(WhiteSpaceStatus::NeededIfDigit)
@@ -99,13 +98,13 @@ impl <'a, W: Write> DropLeadingZero<'a, W> {
     }
 }
 
-impl <'a, W: Write> Write for DropLeadingZero<'a, W> {
+impl<'a, W: Write> Write for DropLeadingZero<'a, W> {
     fn write_str(&mut self, s: &str) -> Result<(), Error> {
         // Don't change anything on empty output
         if s.is_empty() {
             return Ok(());
         }
-        
+
         // Just pass through
         if self.drop_state == DropState::Pass {
             if s.contains('.') || s.contains('e') || s.contains('E') {
@@ -113,12 +112,12 @@ impl <'a, W: Write> Write for DropLeadingZero<'a, W> {
             }
             return self.writer.write_str(s);
         }
-        
+
         // Handle the more complex cases in `write_char`
         let mut iter = s.chars();
         let ch = iter.next().unwrap();
         let rest = iter.as_str();
-        
+
         self.write_char(ch)?;
         self.write_str(rest)
     }
@@ -148,7 +147,7 @@ impl <'a, W: Write> Write for DropLeadingZero<'a, W> {
                     '0' => {
                         // Dirty fix: otherwise this case will break on `"-0"` and will output `"- 0"` instead.
                         self.white_space_needed = WhiteSpaceStatus::NoneNeeded;
-                        
+
                         self.drop_state = DropState::JustDroppedZero;
                         Ok(())
                     }
@@ -199,31 +198,33 @@ impl <'a, W: Write> Write for DropLeadingZero<'a, W> {
 #[test]
 fn test_drop() {
     let mut s = String::new();
-    let res = {let mut d = DropLeadingZero::new(&mut s, WhiteSpaceStatus::NoneNeeded);
-    let f : f64 = 0.1;
-    write!(&mut d, "{}", f)};
+    let res = {
+        let mut d = DropLeadingZero::new(&mut s, WhiteSpaceStatus::NoneNeeded);
+        let f: f64 = 0.1;
+        write!(&mut d, "{}", f)
+    };
     assert_eq!(s, ".1");
     assert!(res.is_ok());
-    
+
     let mut s = String::new();
     {
         let mut d = DropLeadingZero::new(&mut s, WhiteSpaceStatus::NoneNeeded);
-        let f : f64 = 0.0;
+        let f: f64 = 0.0;
         write!(&mut d, "{}", f).unwrap();
         d.finish_and_return_token_written().unwrap();
     }
     assert_eq!(s, "0");
-    
+
     let mut s = String::new();
     let token = {
         let mut d = DropLeadingZero::new(&mut s, WhiteSpaceStatus::NoneNeeded);
-        let f : f64 = -0.0;
+        let f: f64 = -0.0;
         write!(&mut d, "{}", f).unwrap();
         d.finish_and_return_token_written().unwrap()
     };
     assert_eq!(token, WhiteSpaceStatus::NeededIfDigitOrDot);
     assert_eq!(s, "0");
-    
+
     let mut s = String::new();
     {
         let mut d = DropLeadingZero::new(&mut s, WhiteSpaceStatus::NoneNeeded);
@@ -231,11 +232,11 @@ fn test_drop() {
         d.finish_and_return_token_written().unwrap();
     }
     assert_eq!(s, "-0");
-    
+
     let mut s = String::new();
     let token = {
         let mut d = DropLeadingZero::new(&mut s, WhiteSpaceStatus::NeededIfDigitOrDot);
-        let f : f64 = 0.1;
+        let f: f64 = 0.1;
         write!(&mut d, "{}", f).unwrap();
         d.finish_and_return_token_written().unwrap()
     };
@@ -245,7 +246,9 @@ fn test_drop() {
 
 /// A struct implementing `Write` that just counts the bytes written.
 #[derive(Copy, Clone)]
-pub struct Count{ pub len: usize}
+pub struct Count {
+    pub len: usize,
+}
 
 impl Write for Count {
     fn write_str(&mut self, s: &str) -> Result<(), Error> {
@@ -256,7 +259,7 @@ impl Write for Count {
 
 #[test]
 fn test_count() {
-    let mut count = Count{len: 0};
+    let mut count = Count { len: 0 };
     let result = count.write_str("hello world!");
     assert!(result.is_ok());
     assert_eq!(count.len, 12);
