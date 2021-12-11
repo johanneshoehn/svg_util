@@ -9,4 +9,4 @@ repository = "https://github.com/hannni/svg_util"
 readme = "README.md"
 keywords = ["svg"]
 
-edition = '2018'
+edition = '2021'
